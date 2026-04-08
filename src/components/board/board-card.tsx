@@ -6,6 +6,7 @@ import { CSS } from "@dnd-kit/utilities";
 import type { Task } from "@/db/schema";
 import { Badge } from "@/components/ui/badge";
 import { formatShortDate, parseDate } from "@/lib/gantt/timeline";
+import { priorityLabel, taskTypeLabel } from "@/lib/labels";
 
 interface BoardCardProps {
   task: Task;
@@ -48,11 +49,11 @@ export function BoardCard({ task, onSelect }: BoardCardProps) {
 
       <div className="flex items-center gap-1.5 flex-wrap">
         <Badge variant={PRIORITY_VARIANTS[task.priority ?? "medium"] ?? "secondary"} className="text-[10px] px-1.5 py-0">
-          {task.priority}
+          {priorityLabel(task.priority)}
         </Badge>
         {task.taskType && (
           <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-            {task.taskType}
+            {taskTypeLabel(task.taskType)}
           </Badge>
         )}
       </div>

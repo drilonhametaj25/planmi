@@ -4,6 +4,7 @@
 import { memo } from "react";
 import type { Task } from "@/db/schema";
 import { formatShortDate, parseDate, daysBetween } from "@/lib/gantt/timeline";
+import { statusLabel, priorityLabel } from "@/lib/labels";
 
 interface GanttTooltipProps {
   task: Task | null;
@@ -36,10 +37,10 @@ function GanttTooltipInner({ task, position }: GanttTooltipProps) {
           {task.estimatedHours && ` · ${parseFloat(task.estimatedHours)}h stimate`}
         </p>
         <p>
-          Progresso: {task.progress ?? 0}% · Stato: {task.status}
+          Progresso: {task.progress ?? 0}% · Stato: {statusLabel(task.status)}
           {task.executionMode === "supplier" && " · Fornitore"}
         </p>
-        {task.priority && <p>Priorità: {task.priority}</p>}
+        {task.priority && <p>Priorità: {priorityLabel(task.priority)}</p>}
       </div>
     </div>
   );

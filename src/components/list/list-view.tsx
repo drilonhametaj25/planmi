@@ -18,6 +18,7 @@ import { buildTaskTree, filterVisibleNodes } from "@/lib/task-tree";
 import { TagFilter } from "@/components/search/tag-filter";
 import { parseTags } from "@/lib/tags";
 import { useTags } from "@/hooks/use-tags";
+import { statusLabel, priorityLabel } from "@/lib/labels";
 import {
   DndContext,
   DragOverlay,
@@ -453,8 +454,8 @@ export function ListView({ tasks, onUpdateTask, onSelectTask, onReorderTasks }: 
                         </span>
                       </div>
                     </td>
-                    <td className="px-3 py-2 text-[11px] text-muted-foreground">{task.status}</td>
-                    <td className="px-3 py-2 text-[11px] text-muted-foreground">{task.priority}</td>
+                    <td className="px-3 py-2 text-[11px] text-muted-foreground">{statusLabel(task.status)}</td>
+                    <td className="px-3 py-2 text-[11px] text-muted-foreground">{priorityLabel(task.priority)}</td>
                     <td className="px-3 py-2 text-xs font-mono text-muted-foreground">{task.startDate ?? "—"}</td>
                     <td className="px-3 py-2 text-xs font-mono text-muted-foreground">{task.endDate ?? "—"}</td>
                     <td className="px-3 py-2 text-xs font-mono text-muted-foreground" />
