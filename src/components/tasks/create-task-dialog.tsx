@@ -28,6 +28,8 @@ import { useAutoSchedule } from "@/hooks/use-auto-schedule";
 import { ScheduleSuggestionBanner } from "./schedule-suggestion-banner";
 import { TaskPicker } from "./task-picker";
 import { calculateEndFromHours } from "@/lib/task-defaults";
+import { TagInput } from "@/components/search/tag-input";
+import { useTags } from "@/hooks/use-tags";
 
 interface CreateTaskDialogProps {
   projectId: string;
@@ -92,7 +94,11 @@ export function CreateTaskDialog({
   const [milestoneId, setMilestoneId] = useState<string | null>(null);
   const [estimatedHours, setEstimatedHours] = useState("");
   const [notes, setNotes] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
+  const [startTime, setStartTime] = useState("");
+  const [endTime, setEndTime] = useState("");
   const [executionMode, setExecutionMode] = useState<"internal" | "supplier">("internal");
+  const { tags: tagSuggestions } = useTags(projectId);
 
   // Predecessori
   const [predecessorDeps, setPredecessorDeps] = useState<PredecessorDep[]>([]);
@@ -164,6 +170,9 @@ export function CreateTaskDialog({
     setMilestoneId(null);
     setEstimatedHours("");
     setNotes("");
+    setTags([]);
+    setStartTime("");
+    setEndTime("");
     setExecutionMode("internal");
     setPredecessorDeps([]);
     setAddingPred(false);
@@ -190,6 +199,9 @@ export function CreateTaskDialog({
         estimatedHours: estimatedHours ? Number(estimatedHours) : undefined,
         executionMode,
         notes: notes.trim() || undefined,
+        tags: tags.length > 0 ? tags : undefined,
+        startTime: startTime || undefined,
+        endTime: endTime || undefined,
       });
       // Crea le dipendenze se presenti
       const newTask = result as { data?: { id?: string } } | undefined;
@@ -382,6 +394,30 @@ export function CreateTaskDialog({
             </div>
           </div>
 
+          {/* Orari opzionali */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Ora inizio</Label>
+              <Input
+                type="time"
+                step="900"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                placeholder="09:00"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Ora fine</Label>
+              <Input
+                type="time"
+                step="900"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                placeholder="17:00"
+              />
+            </div>
+          </div>
+
           {/* Parent task (sottotask di...) */}
           <div className="space-y-1.5">
             <Label className="text-xs">Sottotask di</Label>
@@ -431,6 +467,17 @@ export function CreateTaskDialog({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Note aggiuntive..."
+            />
+          </div>
+
+          {/* Tag */}
+          <div className="space-y-1.5">
+            <Label className="text-xs">Tag</Label>
+            <TagInput
+              tags={tags}
+              onChange={setTags}
+              suggestions={tagSuggestions}
+              placeholder="Aggiungi tag..."
             />
           </div>
 

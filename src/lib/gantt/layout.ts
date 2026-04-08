@@ -2,7 +2,7 @@
 import type { Task } from "@/db/schema";
 import type { TimelineConfig } from "./timeline";
 import type { ZoomLevel } from "@/lib/types";
-import { dateToX, daysBetween, parseDate } from "./timeline";
+import { dateToX, daysBetween, parseDate, timeToFractionOfDay } from "./timeline";
 
 export interface RowLayout {
   taskId: string;
@@ -27,15 +27,32 @@ export function computeRows(
   return tasks.map((task, index) => {
     const startDate = parseDate(task.startDate);
     const endDate = parseDate(task.endDate);
-    const x = dateToX(startDate, config);
+    const baseX = dateToX(startDate, config);
     const durationDays = daysBetween(startDate, endDate) + 1; // +1 perché inclusive
     const hours = task.estimatedHours ? parseFloat(task.estimatedHours) : 0;
+    const hasStartTime = !!task.startTime;
+    const hasEndTime = !!task.endTime;
+    const isSameDay = task.startDate === task.endDate;
 
+    let x = baseX;
     let width: number;
 
-    if (isHourZoom && hours > 0) {
-      // Zoom orario: larghezza basata sulle ore stimate
-      width = Math.max(hours * hourWidth, hourWidth * 0.5); // min mezza ora
+    if (isHourZoom && hasStartTime && hasEndTime && isSameDay) {
+      // Zoom orario + orari specifici su stesso giorno: posiziona e dimensiona per ora
+      x = baseX + timeToFractionOfDay(task.startTime) * config.dayWidth;
+      const startFrac = timeToFractionOfDay(task.startTime);
+      const endFrac = timeToFractionOfDay(task.endTime);
+      const timeDiff = Math.max(endFrac - startFrac, 0.0625); // min 30min
+      width = Math.max(timeDiff * config.dayWidth, hourWidth * 0.5);
+    } else if (isHourZoom && hasStartTime) {
+      // Zoom orario + solo startTime: offset da startTime, larghezza da ore stimate
+      x = baseX + timeToFractionOfDay(task.startTime) * config.dayWidth;
+      width = hours > 0
+        ? Math.max(hours * hourWidth, hourWidth * 0.5)
+        : Math.max(durationDays * config.dayWidth, config.dayWidth);
+    } else if (isHourZoom && hours > 0) {
+      // Zoom orario senza orari: larghezza basata sulle ore stimate (backward compatible)
+      width = Math.max(hours * hourWidth, hourWidth * 0.5);
     } else if (durationDays === 1 && hours > 0 && hours < 8) {
       // Zoom giorno/settimana: scala per task intra-giornalieri
       const fraction = hours / 8;

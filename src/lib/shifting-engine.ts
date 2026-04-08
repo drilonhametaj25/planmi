@@ -286,3 +286,150 @@ export function calculateShifts(
     hasCircularDependency: false,
   };
 }
+
+// ── Shift intero progetto da una data in avanti (per inserimento emergenza) ──
+
+export interface ShiftFromDateInput {
+  insertDate: string;           // data di inizio dell'emergenza
+  durationWorkdays: number;     // durata in giorni lavorativi
+  allTasks: ShiftTask[];
+  allDependencies: ShiftDependency[];
+  options?: {
+    blockedDates?: Set<string>;
+    supplierTaskIds?: Set<string>;
+  };
+}
+
+export interface ShiftFromDateResult {
+  shifts: ShiftEntry[];
+  emergencyEndDate: string;
+}
+
+/**
+ * Calcola lo spostamento di tutti i task a partire da una data, per fare spazio a un'emergenza.
+ * Task che iniziano >= insertDate: traslati in avanti di durationWorkdays.
+ * Task che iniziano prima ma finiscono >= insertDate: solo endDate traslata.
+ * Poi propaga attraverso le dipendenze per coerenza.
+ */
+export function shiftProjectFromDate(input: ShiftFromDateInput): ShiftFromDateResult {
+  const { insertDate, durationWorkdays, allTasks, allDependencies, options } = input;
+  const blockedDates = options?.blockedDates;
+  const supplierIds = options?.supplierTaskIds ?? new Set<string>();
+
+  // Calcola la fine dell'emergenza
+  const emergencyEndDate = addWorkdays(insertDate, durationWorkdays - 1, blockedDates);
+
+  const insertMs = parseD(insertDate);
+  const shifts: ShiftEntry[] = [];
+
+  // Mappa task → posizioni mutabili
+  const taskMap = new Map<string, { start: string; end: string }>();
+  for (const t of allTasks) {
+    taskMap.set(t.id, { start: t.startDate, end: t.endDate });
+  }
+
+  // Fase 1: shift diretto dei task sovrapposti
+  for (const t of allTasks) {
+    if (supplierIds.has(t.id)) continue;
+
+    const startMs = parseD(t.startDate);
+    const endMs = parseD(t.endDate);
+
+    if (startMs >= insertMs) {
+      // Task inizia dopo o alla data di inserimento → trasla entrambe le date
+      const newStart = addWorkdays(t.startDate, durationWorkdays, blockedDates);
+      const workDuration = countWorkdays(t.startDate, t.endDate, blockedDates);
+      const newEnd = addWorkdays(newStart, workDuration - 1, blockedDates);
+      taskMap.set(t.id, { start: newStart, end: newEnd });
+    } else if (endMs >= insertMs) {
+      // Task inizia prima ma sovrappone l'emergenza → estendi endDate
+      const workDuration = countWorkdays(t.startDate, t.endDate, blockedDates);
+      const newEnd = addWorkdays(t.startDate, workDuration - 1 + durationWorkdays, blockedDates);
+      taskMap.set(t.id, { start: t.startDate, end: newEnd });
+    }
+  }
+
+  // Fase 2: propagazione dipendenze (topological pass)
+  const adj = buildAdjacencyList(allDependencies);
+  const nodes = collectNodes(allDependencies);
+  // Aggiungi tutti i task come nodi (anche quelli senza dipendenze)
+  for (const t of allTasks) nodes.add(t.id);
+  const topo = topologicalSort(adj, nodes);
+
+  if (topo) {
+    // Build reverse map: succ → preds
+    const reverseMap = new Map<string, ShiftDependency[]>();
+    for (const dep of allDependencies) {
+      if (!reverseMap.has(dep.successorId)) reverseMap.set(dep.successorId, []);
+      reverseMap.get(dep.successorId)!.push(dep);
+    }
+
+    for (const nodeId of topo) {
+      if (supplierIds.has(nodeId)) continue;
+      const preds = reverseMap.get(nodeId);
+      if (!preds || preds.length === 0) continue;
+
+      const pos = taskMap.get(nodeId);
+      if (!pos) continue;
+
+      const workDuration = countWorkdays(pos.start, pos.end, blockedDates);
+      let latestConstrainedStart = pos.start;
+
+      for (const dep of preds) {
+        const predPos = taskMap.get(dep.predecessorId);
+        if (!predPos) continue;
+        const lag = dep.lagDays ?? 0;
+
+        let constrainedStart: string;
+        switch (dep.dependencyType) {
+          case "FS":
+            constrainedStart = addWorkdays(predPos.end, 1 + lag, blockedDates);
+            break;
+          case "SS":
+            constrainedStart = addWorkdays(predPos.start, lag, blockedDates);
+            break;
+          case "FF": {
+            const constrainedEnd = addWorkdays(predPos.end, lag, blockedDates);
+            // Work backward from constrained end to find start
+            const tempStart = addWorkdays(constrainedEnd, -(workDuration - 1), blockedDates);
+            constrainedStart = tempStart;
+            break;
+          }
+          case "SF": {
+            const constrainedEnd = addWorkdays(predPos.start, lag, blockedDates);
+            const tempStart = addWorkdays(constrainedEnd, -(workDuration - 1), blockedDates);
+            constrainedStart = tempStart;
+            break;
+          }
+        }
+
+        if (parseD(constrainedStart) > parseD(latestConstrainedStart)) {
+          latestConstrainedStart = constrainedStart;
+        }
+      }
+
+      if (parseD(latestConstrainedStart) > parseD(pos.start)) {
+        const newEnd = addWorkdays(latestConstrainedStart, workDuration - 1, blockedDates);
+        taskMap.set(nodeId, { start: latestConstrainedStart, end: newEnd });
+      }
+    }
+  }
+
+  // Fase 3: raccogli shift effettivi
+  for (const t of allTasks) {
+    const newPos = taskMap.get(t.id);
+    if (!newPos) continue;
+    if (newPos.start !== t.startDate || newPos.end !== t.endDate) {
+      shifts.push({
+        taskId: t.id,
+        oldStartDate: t.startDate,
+        oldEndDate: t.endDate,
+        newStartDate: newPos.start,
+        newEndDate: newPos.end,
+        reason: `Traslato per emergenza dal ${insertDate}`,
+      });
+    }
+  }
+
+  return { shifts, emergencyEndDate };
+}

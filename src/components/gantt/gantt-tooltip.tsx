@@ -29,6 +29,7 @@ function GanttTooltipInner({ task, position }: GanttTooltipProps) {
       <div className="mt-1 space-y-0.5 text-xs text-muted-foreground font-mono">
         <p>
           {formatShortDate(start)} → {formatShortDate(end)} ({duration}g)
+          {task.startTime && task.endTime && ` · ${task.startTime}-${task.endTime}`}
           {task.estimatedHours && ` · ${parseFloat(task.estimatedHours)}h stimate`}
         </p>
         <p>

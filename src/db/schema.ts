@@ -80,6 +80,9 @@ export const tasks = pgTable("tasks", {
   actualHours: numeric("actual_hours", { precision: 6, scale: 1 }),
   sortOrder: integer("sort_order").default(0),
   notes: text("notes"),
+  tags: text("tags"),  // JSON array stored as text: '["tag1","tag2"]'
+  startTime: text("start_time"),  // "HH:MM" format, nullable (null = day start)
+  endTime: text("end_time"),      // "HH:MM" format, nullable (null = day end)
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
@@ -154,6 +157,26 @@ export const weeklySnapshots = pgTable("weekly_snapshots", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 
+// ── Task Links (collegamenti cross-parent tra task) ──
+export const taskLinks = pgTable(
+  "task_links",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    sourceTaskId: uuid("source_task_id")
+      .references(() => tasks.id, { onDelete: "cascade" })
+      .notNull(),
+    targetTaskId: uuid("target_task_id")
+      .references(() => tasks.id, { onDelete: "cascade" })
+      .notNull(),
+    linkType: text("link_type", {
+      enum: ["continues_in", "continued_from", "related_to"],
+    }).notNull(),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => [unique().on(table.sourceTaskId, table.targetTaskId)]
+);
+
 // ── Inferred types ──
 export type Project = typeof projects.$inferSelect;
 export type NewProject = typeof projects.$inferInsert;
@@ -167,3 +190,5 @@ export type NewMilestone = typeof milestones.$inferInsert;
 export type WeeklySnapshot = typeof weeklySnapshots.$inferSelect;
 export type TimeOff = typeof timeOff.$inferSelect;
 export type NewTimeOff = typeof timeOff.$inferInsert;
+export type TaskLinkRow = typeof taskLinks.$inferSelect;
+export type NewTaskLink = typeof taskLinks.$inferInsert;

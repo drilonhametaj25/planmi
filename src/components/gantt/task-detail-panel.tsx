@@ -31,6 +31,11 @@ import { TaskPicker } from "@/components/tasks/task-picker";
 import { detectHoursMismatch, type WorkloadTask, type OptimizeProjectResult } from "@/lib/workload-optimizer";
 import { countWorkdays } from "@/lib/shifting-engine";
 import { OptimizePreviewDialog } from "@/components/tasks/optimize-preview-dialog";
+import { TagInput } from "@/components/search/tag-input";
+import { useTags } from "@/hooks/use-tags";
+import { parseTags } from "@/lib/tags";
+import type { TaskLinkRow } from "@/db/schema";
+import { LINK_TYPE_LABELS, LINK_TYPE_COLORS, type LinkType } from "@/lib/task-links";
 
 interface TaskDetailPanelProps {
   task: Task;
@@ -52,6 +57,10 @@ interface TaskDetailPanelProps {
   onSelectTask: (taskId: string) => void;
   projectId: string;
   onMutate?: () => Promise<unknown>;
+  taskLinks?: TaskLinkRow[];
+  onCreateTaskLink?: (data: { sourceTaskId: string; targetTaskId: string; linkType: string; notes?: string }) => Promise<void>;
+  onDeleteTaskLink?: (id: string) => Promise<void>;
+  onContinueTask?: (data: { id: string; targetParentTaskId: string; title?: string }) => Promise<unknown>;
 }
 
 const DEP_TYPE_LABELS: Record<string, string> = {
@@ -76,6 +85,10 @@ export function TaskDetailPanel({
   onSelectTask,
   projectId,
   onMutate,
+  taskLinks = [],
+  onCreateTaskLink,
+  onDeleteTaskLink,
+  onContinueTask,
 }: TaskDetailPanelProps) {
   const [title, setTitle] = useState(task.title);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -144,6 +157,9 @@ export function TaskDetailPanel({
   // Auto-schedule dopo cambio dipendenze
   const { suggestion: rescheduleSuggestion, isLoading: rescheduleLoading, trigger: triggerReschedule, reset: resetReschedule } =
     useAutoSchedule(projectId);
+
+  const { tags: tagSuggestions } = useTags(projectId);
+  const taskTags = parseTags(task.tags);
 
   /** Trigger auto-schedule con una lista di predecessori esplicita (evita stale closure su dependencies prop) */
   function triggerRescheduleWith(preds: { predecessorId: string; dependencyType: "FS" | "SS" | "FF" | "SF"; lagDays: number }[]) {
@@ -426,6 +442,36 @@ export function TaskDetailPanel({
           {formatShortDate(start)} → {formatShortDate(end)} · {duration} giorni
         </div>
 
+        {/* Orari intra-giornalieri (solo per task foglia) */}
+        {!subtasks.length && (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Ora inizio</Label>
+              <Input
+                type="time"
+                step="900"
+                className="h-8 text-xs"
+                value={task.startTime ?? ""}
+                onChange={(e) =>
+                  onUpdate(task.id, { startTime: e.target.value || null })
+                }
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Ora fine</Label>
+              <Input
+                type="time"
+                step="900"
+                className="h-8 text-xs"
+                value={task.endTime ?? ""}
+                onChange={(e) =>
+                  onUpdate(task.id, { endTime: e.target.value || null })
+                }
+              />
+            </div>
+          </div>
+        )}
+
         {/* Ore stimate → ricalcola endDate */}
         <div className="space-y-1.5">
           <Label className="text-xs">Ore stimate</Label>
@@ -543,6 +589,75 @@ export function TaskDetailPanel({
             }}
           />
         </div>
+
+        {/* Tag */}
+        <div className="space-y-1.5">
+          <Label className="text-xs">Tag</Label>
+          <TagInput
+            tags={taskTags}
+            onChange={(newTags) => onUpdate(task.id, { tags: newTags })}
+            suggestions={tagSuggestions}
+            placeholder="Aggiungi tag..."
+          />
+        </div>
+
+        {/* ═══════ COLLEGAMENTI (Task Links) ═══════ */}
+        {(() => {
+          const myLinks = taskLinks.filter((l) => l.sourceTaskId === task.id);
+          if (myLinks.length === 0 && !onCreateTaskLink) return null;
+          return (
+            <div className="border-t border-border pt-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-muted-foreground">Collegamenti</span>
+              </div>
+              {myLinks.length > 0 && (
+                <div className="space-y-1">
+                  {myLinks.map((link) => {
+                    const targetTask = tasks.find((t) => t.id === link.targetTaskId);
+                    const lt = link.linkType as LinkType;
+                    return (
+                      <div
+                        key={link.id}
+                        className="flex items-center gap-2 text-xs bg-background-elevated rounded px-2 py-1.5"
+                      >
+                        <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-medium", LINK_TYPE_COLORS[lt])}>
+                          {LINK_TYPE_LABELS[lt]}
+                        </span>
+                        {targetTask ? (
+                          <button
+                            className="truncate hover:text-primary transition-colors text-left flex-1"
+                            onClick={() => onSelectTask(targetTask.id)}
+                          >
+                            {targetTask.title}
+                          </button>
+                        ) : (
+                          <span className="text-muted-foreground italic flex-1">Task esterno</span>
+                        )}
+                        {onDeleteTaskLink && (
+                          <button
+                            onClick={() => onDeleteTaskLink(link.id)}
+                            className="text-muted-foreground hover:text-destructive"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {onCreateTaskLink && (
+                <AddTaskLinkForm
+                  taskId={task.id}
+                  tasks={tasks}
+                  existingLinkIds={new Set(myLinks.map((l) => l.targetTaskId))}
+                  onCreateLink={onCreateTaskLink}
+                  onContinueTask={onContinueTask}
+                />
+              )}
+            </div>
+          );
+        })()}
 
         {/* ═══════ PARENT + SOTTOTASK ═══════ */}
         <div className="border-t border-border pt-4 space-y-3">
@@ -1204,6 +1319,152 @@ function getAllDescendants(taskId: string, tasks: Task[]): Task[] {
     result.push(...getAllDescendants(child.id, tasks));
   }
   return result;
+}
+
+/** Form inline per aggiungere un collegamento o continuare un task */
+function AddTaskLinkForm({
+  taskId,
+  tasks: allTasks,
+  existingLinkIds,
+  onCreateLink,
+  onContinueTask,
+}: {
+  taskId: string;
+  tasks: Task[];
+  existingLinkIds: Set<string>;
+  onCreateLink: (data: { sourceTaskId: string; targetTaskId: string; linkType: string }) => Promise<void>;
+  onContinueTask?: (data: { id: string; targetParentTaskId: string; title?: string }) => Promise<unknown>;
+}) {
+  const [mode, setMode] = useState<null | "link" | "continue">(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [linkType, setLinkType] = useState<string>("related_to");
+
+  const parentTasks = allTasks.filter(
+    (t) => t.id !== taskId && !t.parentTaskId && !existingLinkIds.has(t.id)
+  );
+  const linkableTasks = allTasks.filter(
+    (t) => t.id !== taskId && !existingLinkIds.has(t.id)
+  );
+
+  if (!mode) {
+    return (
+      <div className="flex gap-1">
+        <button
+          className="flex items-center gap-1 text-[11px] text-primary hover:underline"
+          onClick={() => setMode("link")}
+        >
+          <Link2 className="h-3 w-3" />
+          Collega
+        </button>
+        {onContinueTask && (
+          <button
+            className="flex items-center gap-1 text-[11px] text-blue-400 hover:underline ml-2"
+            onClick={() => setMode("continue")}
+          >
+            <ArrowRight className="h-3 w-3" />
+            Continua in...
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  if (mode === "continue") {
+    return (
+      <div className="space-y-2 bg-background-elevated rounded p-2">
+        <span className="text-[11px] font-medium">Scegli il task padre di destinazione</span>
+        <TaskPicker
+          tasks={parentTasks}
+          onSelect={(id) => setSelectedTaskId(id)}
+
+          excludeIds={new Set([taskId])}
+        />
+        <div className="flex gap-1">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-6 text-[11px]"
+            onClick={() => { setMode(null); setSelectedTaskId(null); }}
+          >
+            Annulla
+          </Button>
+          <Button
+            size="sm"
+            className="h-6 text-[11px]"
+            disabled={!selectedTaskId}
+            onClick={async () => {
+              if (!selectedTaskId || !onContinueTask) return;
+              try {
+                await onContinueTask({ id: taskId, targetParentTaskId: selectedTaskId });
+                toast.success("Task di continuazione creato");
+                setMode(null);
+                setSelectedTaskId(null);
+              } catch {
+                toast.error("Errore nella continuazione");
+              }
+            }}
+          >
+            Crea continuazione
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // mode === "link"
+  return (
+    <div className="space-y-2 bg-background-elevated rounded p-2">
+      <div className="flex gap-2">
+        <Select value={linkType} onValueChange={(v) => { if (v) setLinkType(v); }}>
+          <SelectTrigger className="h-6 text-[11px] w-32">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="related_to">Correlato</SelectItem>
+            <SelectItem value="continues_in">Continua in</SelectItem>
+            <SelectItem value="continued_from">Continuato da</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <TaskPicker
+        tasks={linkableTasks}
+        onSelect={(id) => setSelectedTaskId(id)}
+        excludeIds={new Set([taskId])}
+      />
+      <div className="flex gap-1">
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-6 text-[11px]"
+          onClick={() => { setMode(null); setSelectedTaskId(null); }}
+        >
+          Annulla
+        </Button>
+        <Button
+          size="sm"
+          className="h-6 text-[11px]"
+          disabled={!selectedTaskId}
+          onClick={async () => {
+            if (!selectedTaskId) return;
+            try {
+              await onCreateLink({
+                sourceTaskId: taskId,
+                targetTaskId: selectedTaskId,
+                linkType,
+              });
+              toast.success("Collegamento creato");
+              setMode(null);
+              setSelectedTaskId(null);
+            } catch {
+              toast.error("Errore nella creazione del collegamento");
+            }
+          }}
+        >
+          Collega
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 /** Form per aggiungere dipendenza con tree picker ricercabile */

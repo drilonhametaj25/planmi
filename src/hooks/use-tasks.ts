@@ -4,11 +4,13 @@
 import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
 import type { Task, NewTask, Dependency } from "@/lib/types";
+import type { TaskLinkRow } from "@/db/schema";
 
 interface TasksResponse {
   data: {
     tasks: Task[];
     dependencies: Dependency[];
+    taskLinks?: TaskLinkRow[];
   };
 }
 
@@ -80,6 +82,41 @@ async function reorderTasks(
   return res.json();
 }
 
+async function createTaskLink(
+  _url: string,
+  { arg }: { arg: { sourceTaskId: string; targetTaskId: string; linkType: string; notes?: string } }
+) {
+  const res = await fetch("/api/task-links", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(arg),
+  });
+  if (!res.ok) throw new Error("Errore creazione collegamento");
+  return res.json();
+}
+
+async function deleteTaskLink(
+  _url: string,
+  { arg }: { arg: { id: string } }
+) {
+  const res = await fetch(`/api/task-links/${arg.id}`, { method: "DELETE" });
+  if (!res.ok) throw new Error("Errore cancellazione collegamento");
+  return res.json();
+}
+
+async function continueTask(
+  _url: string,
+  { arg }: { arg: { id: string; targetParentTaskId: string; title?: string } }
+) {
+  const res = await fetch(`/api/tasks/${arg.id}/continue`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ targetParentTaskId: arg.targetParentTaskId, title: arg.title }),
+  });
+  if (!res.ok) throw new Error("Errore continuazione task");
+  return res.json() as Promise<{ data: { task: Task } }>;
+}
+
 export function useProjectTasks(projectId: string | undefined) {
   const key = tasksKey(projectId);
   const { data, error, isLoading, mutate } = useSWR<TasksResponse>(key);
@@ -93,10 +130,14 @@ export function useProjectTasks(projectId: string | undefined) {
   const { trigger: triggerDelete } = useSWRMutation(key, deleteTask);
   const { trigger: triggerMove } = useSWRMutation(key, moveTask);
   const { trigger: triggerReorder } = useSWRMutation(key, reorderTasks);
+  const { trigger: triggerCreateLink } = useSWRMutation(key, createTaskLink);
+  const { trigger: triggerDeleteLink } = useSWRMutation(key, deleteTaskLink);
+  const { trigger: triggerContinue } = useSWRMutation(key, continueTask);
 
   return {
     tasks: data?.data?.tasks ?? [],
     dependencies: data?.data?.dependencies ?? [],
+    taskLinks: data?.data?.taskLinks ?? [],
     error,
     isLoading,
     mutate,
@@ -106,5 +147,8 @@ export function useProjectTasks(projectId: string | undefined) {
     deleteTask: triggerDelete,
     moveTask: triggerMove,
     reorderTasks: triggerReorder,
+    createTaskLink: triggerCreateLink,
+    deleteTaskLink: triggerDeleteLink,
+    continueTask: triggerContinue,
   };
 }

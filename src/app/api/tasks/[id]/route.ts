@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { successResponse, errorResponse, parseBody } from "@/lib/api-helpers";
 import { updateTaskSchema } from "@/lib/validators";
 import { recalculateParentBounds } from "@/lib/parent-bounds";
+import { serializeTags } from "@/lib/tags";
 
 // ── Utility date ──
 function parseD(s: string): number {
@@ -145,6 +146,11 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         parsed.data.actualHours !== null
           ? String(parsed.data.actualHours)
           : null;
+    }
+
+    // Converti array tag in stringa JSON per il DB
+    if (parsed.data.tags !== undefined) {
+      updateData.tags = parsed.data.tags ? serializeTags(parsed.data.tags) : null;
     }
 
     const [updated] = await db

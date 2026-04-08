@@ -134,3 +134,45 @@ export function parseDate(dateStr: string): Date {
   const d = new Date(dateStr + "T00:00:00");
   return d;
 }
+
+// ── Funzioni per scheduling orario intra-giornaliero ──
+
+export const WORKDAY_START = 9;  // 09:00
+export const WORKDAY_END = 17;   // 17:00
+export const WORKDAY_HOURS = 8;
+
+/** Converte "HH:MM" in frazione della giornata lavorativa [0.0 - 1.0].
+ *  "09:00" → 0.0, "13:00" → 0.5, "17:00" → 1.0. null → 0.0 (inizio giornata). */
+export function timeToFractionOfDay(time: string | null): number {
+  if (!time) return 0;
+  const [h, m] = time.split(":").map(Number);
+  const hours = (h ?? WORKDAY_START) + (m ?? 0) / 60;
+  const clamped = Math.max(WORKDAY_START, Math.min(WORKDAY_END, hours));
+  return (clamped - WORKDAY_START) / WORKDAY_HOURS;
+}
+
+/** Converte una frazione della giornata [0.0 - 1.0] in "HH:MM", snap a 15 minuti. */
+export function fractionToTime(fraction: number): string {
+  const clamped = Math.max(0, Math.min(1, fraction));
+  const totalMinutes = Math.round((WORKDAY_START * 60 + clamped * WORKDAY_HOURS * 60) / 15) * 15;
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+/** Converte data + orario in posizione X pixel (per zoom orario). */
+export function dateTimeToX(date: Date, time: string | null, config: TimelineConfig): number {
+  return dateToX(date, config) + timeToFractionOfDay(time) * config.dayWidth;
+}
+
+/** Converte posizione X pixel in data + orario (per zoom orario), snap a 15 minuti. */
+export function xToDateTime(x: number, config: TimelineConfig): { date: Date; time: string } {
+  const dayFraction = x / config.dayWidth;
+  const dayIndex = Math.floor(dayFraction);
+  const timeFraction = dayFraction - dayIndex;
+
+  const date = new Date(config.startDate);
+  date.setDate(date.getDate() + dayIndex);
+
+  return { date, time: fractionToTime(timeFraction) };
+}

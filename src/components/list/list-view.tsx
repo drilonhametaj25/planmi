@@ -15,6 +15,9 @@ import { ChevronRight, ChevronDown, Check, ArrowUpDown, GripVertical } from "luc
 import { cn } from "@/lib/utils";
 import { formatShortDate, parseDate, daysBetween } from "@/lib/gantt/timeline";
 import { buildTaskTree, filterVisibleNodes } from "@/lib/task-tree";
+import { TagFilter } from "@/components/search/tag-filter";
+import { parseTags } from "@/lib/tags";
+import { useTags } from "@/hooks/use-tags";
 import {
   DndContext,
   DragOverlay,
@@ -237,6 +240,9 @@ export function ListView({ tasks, onUpdateTask, onSelectTask, onReorderTasks }: 
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
+  const [tagFilter, setTagFilter] = useState<string[]>([]);
+  const projectId = tasks[0]?.projectId;
+  const { tags: availableTags } = useTags(projectId);
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -294,8 +300,14 @@ export function ListView({ tasks, onUpdateTask, onSelectTask, onReorderTasks }: 
     if (priorityFilter !== "all") {
       result = result.filter((t) => t.priority === priorityFilter);
     }
+    if (tagFilter.length > 0) {
+      result = result.filter((t) => {
+        const taskTags = parseTags(t.tags);
+        return tagFilter.every((ft) => taskTags.includes(ft));
+      });
+    }
     return result;
-  }, [tasks, statusFilter, priorityFilter]);
+  }, [tasks, statusFilter, priorityFilter, tagFilter]);
 
   const treeNodes = useMemo(() => buildTaskTree(filtered), [filtered]);
   const visibleNodes = useMemo(
@@ -357,6 +369,12 @@ export function ListView({ tasks, onUpdateTask, onSelectTask, onReorderTasks }: 
             <SelectItem value="low">Low</SelectItem>
           </SelectContent>
         </Select>
+
+        <TagFilter
+          availableTags={availableTags}
+          selectedTags={tagFilter}
+          onTagsChange={setTagFilter}
+        />
 
         <span className="ml-auto text-xs text-muted-foreground font-mono">
           {visibleNodes.length} task

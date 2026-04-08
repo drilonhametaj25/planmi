@@ -1,10 +1,11 @@
 /* route.ts — GET /api/projects/[id]/tasks (tutti i task con deps), POST (crea task). */
 import { db } from "@/db";
-import { tasks, dependencies } from "@/db/schema";
+import { tasks, dependencies, taskLinks } from "@/db/schema";
 import { eq, asc } from "drizzle-orm";
 import { successResponse, errorResponse, parseBody } from "@/lib/api-helpers";
 import { createTaskSchema } from "@/lib/validators";
 import { recalculateParentBounds } from "@/lib/parent-bounds";
+import { serializeTags } from "@/lib/tags";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -29,7 +30,17 @@ export async function GET(_request: Request, { params }: RouteParams) {
       );
     }
 
-    return successResponse({ tasks: projectTasks, dependencies: projectDeps });
+    // Carica task links dove almeno un lato è nel progetto
+    let projectLinks: (typeof taskLinks.$inferSelect)[] = [];
+    if (taskIds.length > 0) {
+      const allLinks = await db.select().from(taskLinks);
+      projectLinks = allLinks.filter(
+        (l) =>
+          taskIds.includes(l.sourceTaskId) || taskIds.includes(l.targetTaskId)
+      );
+    }
+
+    return successResponse({ tasks: projectTasks, dependencies: projectDeps, taskLinks: projectLinks });
   } catch (e) {
     console.error("GET /api/projects/[id]/tasks error:", e);
     return errorResponse("Errore nel caricamento task", 500);
@@ -44,13 +55,14 @@ export async function POST(request: Request, { params }: RouteParams) {
 
     // Assicura che projectId corrisponda alla route
     // Converti estimatedHours da number a string per il campo numeric del DB
-    const { estimatedHours, ...rest } = parsed.data;
+    const { estimatedHours, tags, ...rest } = parsed.data;
     const [task] = await db
       .insert(tasks)
       .values({
         ...rest,
         projectId: id,
         estimatedHours: estimatedHours != null ? String(estimatedHours) : undefined,
+        tags: tags ? serializeTags(tags) : undefined,
       })
       .returning();
 

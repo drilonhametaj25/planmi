@@ -53,6 +53,9 @@ export const createTaskSchema = z.object({
   executionMode: z.enum(["internal", "supplier"]).optional(),
   sortOrder: z.number().int().optional(),
   notes: z.string().optional(),
+  tags: z.array(z.string().min(1).max(50)).max(20).optional(),
+  startTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullable().optional(),
+  endTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullable().optional(),
 });
 
 export const updateTaskSchema = z.object({
@@ -95,6 +98,9 @@ export const updateTaskSchema = z.object({
   executionMode: z.enum(["internal", "supplier"]).optional(),
   sortOrder: z.number().int().optional(),
   notes: z.string().nullable().optional(),
+  tags: z.array(z.string().min(1).max(50)).max(20).nullable().optional(),
+  startTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullable().optional(),
+  endTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullable().optional(),
 });
 
 // ── Dependencies ──
@@ -124,6 +130,8 @@ export const updateMilestoneSchema = z.object({
 export const moveTaskSchema = z.object({
   newStartDate: z.string(),
   newEndDate: z.string(),
+  newStartTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullable().optional(),
+  newEndTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullable().optional(),
 });
 
 // ── Auto-schedule ──
@@ -153,6 +161,38 @@ export const createTimeOffSchema = z.object({
 });
 
 export const updateTimeOffSchema = createTimeOffSchema.partial();
+
+// ── Generate Plan ──
+export const generatePlanSchema = z.object({
+  startFrom: z.string().optional(),
+  suggestDependencies: z.boolean().default(true),
+});
+
+// ── Emergency Insert ──
+export const emergencyInsertSchema = z.object({
+  title: z.string().min(1).max(500),
+  taskType: z
+    .enum([
+      "frontend", "backend", "database", "api", "design", "testing",
+      "devops", "documentation", "bug_fix", "feature", "refactoring",
+      "research", "meeting", "setup", "deployment", "altro",
+    ])
+    .optional(),
+  estimatedHours: z.number().min(0).optional(),
+  insertDate: z.string(),
+  parentTaskId: z.string().uuid().nullable().optional(),
+  description: z.string().optional(),
+  notes: z.string().optional(),
+  priority: z.enum(["critical", "high", "medium", "low"]).default("critical"),
+});
+
+// ── Task Links ──
+export const createTaskLinkSchema = z.object({
+  sourceTaskId: z.string().uuid(),
+  targetTaskId: z.string().uuid(),
+  linkType: z.enum(["continues_in", "continued_from", "related_to"]),
+  notes: z.string().optional(),
+});
 
 // ── Reorder tasks ──
 export const reorderTasksSchema = z.object({

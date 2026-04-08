@@ -13,7 +13,11 @@
       "Bash(npx drizzle-kit:*)",
       "Bash(npx next:*)",
       "Bash(cat:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(xargs grep:*)",
+      "Bash(ls E:/ssd-workspace/planmi/drizzle.config.*)",
+      "Bash(npx tsx:*)",
+      "Bash(node -e \"require\\('dotenv'\\)\")"
     ]
   }
 }

@@ -18,7 +18,9 @@ import { CreateTaskDialog } from "@/components/tasks/create-task-dialog";
 import { OptimizePreviewDialog } from "@/components/tasks/optimize-preview-dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Zap } from "lucide-react";
+import { Zap, AlertTriangle, Wand2 } from "lucide-react";
+import { EmergencyInsertDialog } from "@/components/tasks/emergency-insert-dialog";
+import { GeneratePlanDialog } from "@/components/tasks/generate-plan-dialog";
 import { toast } from "sonner";
 import type { OptimizeProjectResult } from "@/lib/workload-optimizer";
 
@@ -39,6 +41,10 @@ export default function ProjectPage() {
     moveTask,
     createTask,
     reorderTasks,
+    taskLinks,
+    createTaskLink,
+    deleteTaskLink,
+    continueTask,
   } = useProjectTasks(projectId);
   const { createDependency, deleteDependency } = useDependencies(projectId);
   const {
@@ -61,6 +67,11 @@ export default function ProjectPage() {
   const [optimizeStartFrom, setOptimizeStartFrom] = useState(
     new Date().toISOString().split("T")[0]!
   );
+
+  // Emergency state
+  const [emergencyOpen, setEmergencyOpen] = useState(false);
+  // Generate Plan state
+  const [planOpen, setPlanOpen] = useState(false);
 
   const selectedTask = tasks.find((t) => t.id === selectedTaskId) ?? null;
 
@@ -387,6 +398,26 @@ export default function ProjectPage() {
             Ottimizza
           </Button>
 
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5 text-xs text-muted-foreground hover:text-pm-accent"
+            onClick={() => setPlanOpen(true)}
+          >
+            <Wand2 className="h-3.5 w-3.5" />
+            Genera Piano
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5 text-xs text-muted-foreground hover:text-destructive"
+            onClick={() => setEmergencyOpen(true)}
+          >
+            <AlertTriangle className="h-3.5 w-3.5" />
+            Emergenza
+          </Button>
+
           <CreateTaskDialog
             projectId={projectId}
             tasks={tasks}
@@ -486,6 +517,20 @@ export default function ProjectPage() {
           onSelectTask={(id) => setSelectedTaskId(id)}
           projectId={projectId}
           onMutate={mutateTasks}
+          taskLinks={taskLinks}
+          onCreateTaskLink={async (data) => {
+            await createTaskLink(data);
+            await mutateTasks();
+          }}
+          onDeleteTaskLink={async (id) => {
+            await deleteTaskLink({ id });
+            await mutateTasks();
+          }}
+          onContinueTask={async (data) => {
+            const result = await continueTask(data);
+            await mutateTasks();
+            return result;
+          }}
         />
       )}
 
@@ -501,6 +546,20 @@ export default function ProjectPage() {
           setOptimizeStartFrom(d);
           handleOptimizePreview(d);
         }}
+      />
+
+      <EmergencyInsertDialog
+        open={emergencyOpen}
+        onOpenChange={setEmergencyOpen}
+        projectId={projectId}
+        onApplied={mutateTasks}
+      />
+
+      <GeneratePlanDialog
+        open={planOpen}
+        onOpenChange={setPlanOpen}
+        projectId={projectId}
+        onApplied={mutateTasks}
       />
     </div>
   );

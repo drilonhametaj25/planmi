@@ -69,6 +69,8 @@ export interface WorkloadTask {
   projectId: string;
   projectName?: string;
   sortOrder: number | null;
+  startTime?: string | null;  // "HH:MM" intra-day scheduling
+  endTime?: string | null;    // "HH:MM" intra-day scheduling
 }
 
 export interface HoursMismatch {
@@ -112,6 +114,8 @@ export interface DailySlot {
   projectName: string;
   hours: number;
   priority: string;
+  startTime?: string | null;  // "HH:MM" se specificato dal task
+  endTime?: string | null;    // "HH:MM" se specificato dal task
 }
 
 export interface DailySchedule {
