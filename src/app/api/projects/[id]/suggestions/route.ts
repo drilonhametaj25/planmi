@@ -32,8 +32,11 @@ export async function GET(_request: Request, { params }: RouteParams) {
 
     const today = new Date().toISOString().split("T")[0]!;
 
+    // Filter unscheduled tasks — suggestions need dates for overdue/duration checks
+    const scheduledTasks = projectTasks.filter((t) => t.startDate && t.endDate);
+
     const suggestions = generateSuggestions({
-      tasks: projectTasks,
+      tasks: scheduledTasks as typeof projectTasks,
       dependencies: projectDeps,
       history,
       today,

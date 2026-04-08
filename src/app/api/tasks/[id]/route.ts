@@ -61,14 +61,17 @@ async function recalculateParentProgress(parentId: string) {
 
   if (children.length === 0) return;
 
-  // Peso = durata in giorni di ogni sottotask
+  // Peso = durata in giorni di ogni sottotask (unscheduled = peso 1)
   let totalWeight = 0;
   let weightedProgress = 0;
 
   for (const child of children) {
-    const start = new Date(child.startDate + "T00:00:00Z").getTime();
-    const end = new Date(child.endDate + "T00:00:00Z").getTime();
-    const durationDays = Math.max(1, Math.round((end - start) / 86400000) + 1);
+    let durationDays = 1;
+    if (child.startDate && child.endDate) {
+      const start = new Date(child.startDate + "T00:00:00Z").getTime();
+      const end = new Date(child.endDate + "T00:00:00Z").getTime();
+      durationDays = Math.max(1, Math.round((end - start) / 86400000) + 1);
+    }
     const progress = child.progress ?? 0;
 
     totalWeight += durationDays;
@@ -166,6 +169,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     // ── Cascata sottotask: se startDate è cambiato, trasla tutti i discendenti ──
     if (
       parsed.data.startDate &&
+      current.startDate &&
       parsed.data.startDate !== current.startDate
     ) {
       const deltaMs =
@@ -177,6 +181,8 @@ export async function PATCH(request: Request, { params }: RouteParams) {
           .where(eq(tasks.projectId, current.projectId));
         const descendants = getAllDescendants(id, allProjectTasks);
         for (const desc of descendants) {
+          // Skip unscheduled descendants
+          if (!desc.startDate || !desc.endDate) continue;
           await db
             .update(tasks)
             .set({

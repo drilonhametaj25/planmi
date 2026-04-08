@@ -25,8 +25,9 @@ export function computeRows(
   const hourWidth = config.dayWidth / 8; // px per ora
 
   return tasks.map((task, index) => {
-    const startDate = parseDate(task.startDate);
-    const endDate = parseDate(task.endDate);
+    // Callers must filter to scheduled tasks only (startDate & endDate non-null)
+    const startDate = parseDate(task.startDate!);
+    const endDate = parseDate(task.endDate!);
     const baseX = dateToX(startDate, config);
     const durationDays = daysBetween(startDate, endDate) + 1; // +1 perché inclusive
     const hours = task.estimatedHours ? parseFloat(task.estimatedHours) : 0;

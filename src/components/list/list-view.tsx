@@ -79,9 +79,9 @@ function SortableListRow({
     isDragging,
   } = useSortable({ id: task.id });
 
-  const start = parseDate(task.startDate);
-  const end = parseDate(task.endDate);
-  const duration = daysBetween(start, end) + 1;
+  const start = task.startDate ? parseDate(task.startDate) : null;
+  const end = task.endDate ? parseDate(task.endDate) : null;
+  const duration = start && end ? daysBetween(start, end) + 1 : null;
   const isDone = task.status === "done";
   const isCollapsed = collapsedIds.has(task.id);
   const color = STATUS_COLORS[task.status ?? "todo"] ?? "#71717A";
@@ -210,13 +210,13 @@ function SortableListRow({
         </Select>
       </td>
       <td className="px-3 py-2 text-xs font-mono text-muted-foreground">
-        {formatShortDate(start)}
+        {start ? formatShortDate(start) : <span className="text-warning/60 italic">—</span>}
       </td>
       <td className="px-3 py-2 text-xs font-mono text-muted-foreground">
-        {formatShortDate(end)}
+        {end ? formatShortDate(end) : <span className="text-warning/60 italic">—</span>}
       </td>
       <td className="px-3 py-2 text-xs font-mono text-muted-foreground">
-        {duration}g
+        {duration != null ? `${duration}g` : <span className="text-warning/60 italic">—</span>}
       </td>
       <td className="px-3 py-2">
         <div className="flex items-center gap-2">
@@ -455,8 +455,8 @@ export function ListView({ tasks, onUpdateTask, onSelectTask, onReorderTasks }: 
                     </td>
                     <td className="px-3 py-2 text-[11px] text-muted-foreground">{task.status}</td>
                     <td className="px-3 py-2 text-[11px] text-muted-foreground">{task.priority}</td>
-                    <td className="px-3 py-2 text-xs font-mono text-muted-foreground">{task.startDate}</td>
-                    <td className="px-3 py-2 text-xs font-mono text-muted-foreground">{task.endDate}</td>
+                    <td className="px-3 py-2 text-xs font-mono text-muted-foreground">{task.startDate ?? "—"}</td>
+                    <td className="px-3 py-2 text-xs font-mono text-muted-foreground">{task.endDate ?? "—"}</td>
                     <td className="px-3 py-2 text-xs font-mono text-muted-foreground" />
                     <td className="px-3 py-2 text-xs font-mono text-muted-foreground">{task.progress ?? 0}%</td>
                   </tr>

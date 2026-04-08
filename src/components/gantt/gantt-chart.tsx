@@ -48,7 +48,7 @@ const ROW_HEIGHT = 40;
 const HEADER_HEIGHT = 48;
 
 /** Formatta una data UTC in YYYY-MM-DD. Usa getUTC* per evitare offset timezone. */
-function formatDateStr(date: Date): string {
+function toISODateStr(date: Date): string {
   const y = date.getUTCFullYear();
   const m = String(date.getUTCMonth() + 1).padStart(2, "0");
   const d = String(date.getUTCDate()).padStart(2, "0");
@@ -126,6 +126,12 @@ export function GanttChart({
     [visibleNodes]
   );
 
+  // Task schedulati (con date) — solo questi vengono disegnati nel timeline SVG
+  const scheduledTasks = useMemo(
+    () => visibleTasks.filter((t) => t.startDate && t.endDate),
+    [visibleTasks]
+  );
+
   // Mappa date time-off → { type, isFullDay, hours }
   // Usa date locali (non UTC) per matchare il grid del Gantt che usa getFullYear/getMonth/getDate
   const timeOffMap = useMemo(() => {
@@ -148,11 +154,11 @@ export function GanttChart({
   }, [timeOff]);
 
   const totalWidth = getTotalWidth(config);
-  const totalHeight = HEADER_HEIGHT + visibleTasks.length * ROW_HEIGHT + 60;
+  const totalHeight = HEADER_HEIGHT + scheduledTasks.length * ROW_HEIGHT + 60;
 
   const rows = useMemo(
-    () => computeRows(visibleTasks, config, zoom),
-    [visibleTasks, config, zoom]
+    () => computeRows(scheduledTasks, config, zoom),
+    [scheduledTasks, config, zoom]
   );
   const layoutMap = useMemo(() => {
     const map = new Map<string, RowLayout>();
@@ -237,7 +243,7 @@ export function GanttChart({
       if (daysDelta === 0) return;
 
       const task = tasks.find((t) => t.id === drag.taskId);
-      if (!task) return;
+      if (!task || !task.startDate || !task.endDate) return;
 
       // Calcolo date con UTC puro (evita offset timezone locale)
       const DAY_MS = 86400000;
@@ -246,18 +252,18 @@ export function GanttChart({
       const deltaMs = daysDelta * DAY_MS;
 
       if (drag.type === "move") {
-        const newStart = formatDateStr(new Date(startMs + deltaMs));
-        const newEnd = formatDateStr(new Date(endMs + deltaMs));
+        const newStart = toISODateStr(new Date(startMs + deltaMs));
+        const newEnd = toISODateStr(new Date(endMs + deltaMs));
         onTaskMove(task.id, newStart, newEnd);
       } else if (drag.type === "resize-right") {
         const newEnd = new Date(endMs + deltaMs);
         if (newEnd.getTime() >= startMs) {
-          onTaskResize(task.id, task.startDate, formatDateStr(newEnd));
+          onTaskResize(task.id, task.startDate, toISODateStr(newEnd));
         }
       } else if (drag.type === "resize-left") {
         const newStart = new Date(startMs + deltaMs);
         if (newStart.getTime() <= endMs) {
-          onTaskResize(task.id, formatDateStr(newStart), task.endDate);
+          onTaskResize(task.id, toISODateStr(newStart), task.endDate);
         }
       }
     };
@@ -378,7 +384,7 @@ export function GanttChart({
             })}
 
             {/* Grid righe */}
-            {visibleTasks.map((_, i) => (
+            {scheduledTasks.map((_, i) => (
               <line
                 key={i}
                 x1={0}
@@ -417,9 +423,9 @@ export function GanttChart({
               />
             )}
 
-            {/* Barre task — solo visibili */}
+            {/* Barre task — solo schedulati */}
             {rows.map((layout) => {
-              const task = visibleTasks.find((t) => t.id === layout.taskId);
+              const task = scheduledTasks.find((t) => t.id === layout.taskId);
               if (!task) return null;
               const isDragging = draggingTaskId === task.id;
               return (
@@ -444,7 +450,7 @@ export function GanttChart({
                   key={m.id}
                   milestone={m}
                   config={config}
-                  totalRows={visibleTasks.length}
+                  totalRows={scheduledTasks.length}
                 />
               ))}
           </svg>

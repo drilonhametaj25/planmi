@@ -15,6 +15,7 @@ import { Wand2, ArrowRight, Check, Loader2, AlertTriangle, GitBranch } from "luc
 import { toast } from "sonner";
 import type { PlanGeneratorResult, SuggestedDependency } from "@/lib/plan-generator";
 import type { TaskChange } from "@/lib/workload-optimizer";
+import { formatDateStr } from "@/lib/gantt/timeline";
 
 interface GeneratePlanDialogProps {
   open: boolean;
@@ -112,7 +113,7 @@ export function GeneratePlanDialog({
     });
   }
 
-  const formatDate = (d: string) => d.slice(5);
+  // Usa formatDateStr da timeline.ts per formato gg/mm
 
   return (
     <Dialog
@@ -243,11 +244,11 @@ export function GeneratePlanDialog({
                       >
                         <span className="flex-1 truncate">{c.taskTitle}</span>
                         <span className="line-through text-muted-foreground">
-                          {formatDate(c.oldStartDate)}
+                          {formatDateStr(c.oldStartDate)}
                         </span>
                         <ArrowRight className="h-3 w-3 text-muted-foreground" />
                         <span className="font-medium">
-                          {formatDate(c.newStartDate)}
+                          {formatDateStr(c.newStartDate)}
                         </span>
                       </div>
                     ))}

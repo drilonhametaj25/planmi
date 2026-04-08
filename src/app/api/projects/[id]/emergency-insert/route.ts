@@ -53,11 +53,12 @@ export async function POST(request: Request, { params }: RouteParams) {
       projectTasks.filter((t) => t.executionMode === "supplier").map((t) => t.id)
     );
 
-    // Calcola shift
-    const shiftTasks: ShiftTask[] = projectTasks.map((t) => ({
+    // Calcola shift — solo task schedulati
+    const scheduledTasks = projectTasks.filter((t) => t.startDate && t.endDate);
+    const shiftTasks: ShiftTask[] = scheduledTasks.map((t) => ({
       id: t.id,
-      startDate: t.startDate,
-      endDate: t.endDate,
+      startDate: t.startDate!,
+      endDate: t.endDate!,
     }));
     const shiftDeps: ShiftDependency[] = projectDeps.map((d) => ({
       predecessorId: d.predecessorId,

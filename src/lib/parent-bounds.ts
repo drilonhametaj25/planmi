@@ -25,10 +25,14 @@ export async function recalculateParentBounds(taskId: string) {
 
   if (children.length === 0) return;
 
+  // Only consider scheduled children (with dates)
+  const scheduledChildren = children.filter((c) => c.startDate && c.endDate);
+  if (scheduledChildren.length === 0) return;
+
   const minChildStartMs = Math.min(
-    ...children.map((c) => parseD(c.startDate))
+    ...scheduledChildren.map((c) => parseD(c.startDate!))
   );
-  const maxChildEndMs = Math.max(...children.map((c) => parseD(c.endDate)));
+  const maxChildEndMs = Math.max(...scheduledChildren.map((c) => parseD(c.endDate!)));
 
   const [parent] = await db
     .select({
@@ -43,10 +47,15 @@ export async function recalculateParentBounds(taskId: string) {
 
   const update: Record<string, unknown> = {};
 
-  if (parseD(parent.startDate) > minChildStartMs) {
+  // If parent is unscheduled, set its dates from children
+  if (!parent.startDate) {
+    update.startDate = formatD(minChildStartMs);
+  } else if (parseD(parent.startDate) > minChildStartMs) {
     update.startDate = formatD(minChildStartMs);
   }
-  if (parseD(parent.endDate) < maxChildEndMs) {
+  if (!parent.endDate) {
+    update.endDate = formatD(maxChildEndMs);
+  } else if (parseD(parent.endDate) < maxChildEndMs) {
     update.endDate = formatD(maxChildEndMs);
   }
 

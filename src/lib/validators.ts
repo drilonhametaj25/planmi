@@ -47,8 +47,8 @@ export const createTaskSchema = z.object({
       "altro",
     ])
     .optional(),
-  startDate: z.string(),
-  endDate: z.string(),
+  startDate: z.string().nullable().optional(),   // null = da schedulare
+  endDate: z.string().nullable().optional(),     // null = da schedulare
   estimatedHours: z.number().min(0).optional(),
   executionMode: z.enum(["internal", "supplier"]).optional(),
   sortOrder: z.number().int().optional(),
@@ -88,8 +88,8 @@ export const updateTaskSchema = z.object({
     ])
     .nullable()
     .optional(),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
+  startDate: z.string().nullable().optional(),
+  endDate: z.string().nullable().optional(),
   actualStartDate: z.string().nullable().optional(),
   actualEndDate: z.string().nullable().optional(),
   progress: z.number().int().min(0).max(100).optional(),

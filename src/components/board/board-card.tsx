@@ -59,8 +59,10 @@ export function BoardCard({ task, onSelect }: BoardCardProps) {
 
       <div className="flex items-center justify-between text-[10px] text-muted-foreground font-mono">
         <span>
-          {formatShortDate(parseDate(task.startDate))} →{" "}
-          {formatShortDate(parseDate(task.endDate))}
+          {task.startDate && task.endDate
+            ? `${formatShortDate(parseDate(task.startDate))} → ${formatShortDate(parseDate(task.endDate))}`
+            : <span className="italic text-warning/60">Da schedulare</span>
+          }
         </span>
         <span>{task.progress ?? 0}%</span>
       </div>

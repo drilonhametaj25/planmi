@@ -13,9 +13,9 @@ interface GanttTooltipProps {
 function GanttTooltipInner({ task, position }: GanttTooltipProps) {
   if (!task || !position) return null;
 
-  const start = parseDate(task.startDate);
-  const end = parseDate(task.endDate);
-  const duration = daysBetween(start, end) + 1;
+  const start = task.startDate ? parseDate(task.startDate) : null;
+  const end = task.endDate ? parseDate(task.endDate) : null;
+  const duration = start && end ? daysBetween(start, end) + 1 : null;
 
   return (
     <div
@@ -28,7 +28,10 @@ function GanttTooltipInner({ task, position }: GanttTooltipProps) {
       <p className="text-sm font-medium text-popover-foreground">{task.title}</p>
       <div className="mt-1 space-y-0.5 text-xs text-muted-foreground font-mono">
         <p>
-          {formatShortDate(start)} → {formatShortDate(end)} ({duration}g)
+          {start && end
+            ? `${formatShortDate(start)} → ${formatShortDate(end)} (${duration}g)`
+            : "Da schedulare"
+          }
           {task.startTime && task.endTime && ` · ${task.startTime}-${task.endTime}`}
           {task.estimatedHours && ` · ${parseFloat(task.estimatedHours)}h stimate`}
         </p>

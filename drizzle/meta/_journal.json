@@ -15,6 +15,13 @@
       "when": 1775651460000,
       "tag": "0001_add_tags_links_time",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1775651461000,
+      "tag": "0002_nullable_task_dates",
+      "breakpoints": true
     }
   ]
 }

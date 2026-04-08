@@ -71,8 +71,8 @@ export const tasks = pgTable("tasks", {
       "altro",
     ],
   }),
-  startDate: date("start_date").notNull(),
-  endDate: date("end_date").notNull(),
+  startDate: date("start_date"),   // nullable = task "da schedulare"
+  endDate: date("end_date"),       // nullable = task "da schedulare"
   actualStartDate: date("actual_start_date"),
   actualEndDate: date("actual_end_date"),
   progress: integer("progress").default(0),

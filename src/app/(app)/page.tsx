@@ -165,10 +165,10 @@ export default function DashboardPage() {
           ) : (
             <div className="space-y-2">
               {urgentTasks.map((task) => {
-                const end = parseDate(task.endDate);
+                const end = task.endDate ? parseDate(task.endDate) : null;
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
-                const isOverdue = end < today;
+                const isOverdue = end ? end < today : false;
 
                 return (
                   <div
@@ -181,11 +181,17 @@ export default function DashboardPage() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm truncate">{task.title}</p>
                       <p className="text-xs text-muted-foreground font-mono">
-                        Scadenza: {formatShortDate(end)}
-                        {isOverdue && (
-                          <span className="text-critical ml-1">
-                            (scaduto)
-                          </span>
+                        {end ? (
+                          <>
+                            Scadenza: {formatShortDate(end)}
+                            {isOverdue && (
+                              <span className="text-critical ml-1">
+                                (scaduto)
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          <span className="italic">Da schedulare</span>
                         )}
                       </p>
                     </div>

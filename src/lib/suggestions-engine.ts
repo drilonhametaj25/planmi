@@ -40,6 +40,7 @@ export function generateSuggestions(input: SuggestionsInput): Suggestion[] {
   // ── REGOLA 1: Task scaduti ──
   for (const task of tasks) {
     if (task.status === "done") continue;
+    if (!task.startDate || !task.endDate) continue; // skip unscheduled
     const daysOverdue = daysDiff(task.endDate, today);
     if (daysOverdue > 0) {
       suggestions.push({
@@ -56,6 +57,7 @@ export function generateSuggestions(input: SuggestionsInput): Suggestion[] {
   // ── REGOLA 2: Task indietro rispetto al piano ──
   for (const task of tasks) {
     if (task.status === "done" || task.status === "todo") continue;
+    if (!task.startDate || !task.endDate) continue; // skip unscheduled
     const totalDuration = daysDiff(task.startDate, task.endDate) + 1;
     const elapsed = daysDiff(task.startDate, today);
     if (elapsed <= 0 || totalDuration <= 0) continue;
@@ -81,7 +83,7 @@ export function generateSuggestions(input: SuggestionsInput): Suggestion[] {
     const problematicTasks = activeTasks.filter(
       (t) =>
         t.status === "blocked" ||
-        (t.status !== "done" && daysDiff(t.endDate, today) > 0)
+        (t.status !== "done" && t.endDate && daysDiff(t.endDate, today) > 0)
     );
     const ratio = problematicTasks.length / activeTasks.length;
     if (ratio > 0.3) {
@@ -137,7 +139,7 @@ export function generateSuggestions(input: SuggestionsInput): Suggestion[] {
     if (!task) continue;
     if (
       task.status === "blocked" ||
-      (task.status !== "done" && daysDiff(task.endDate, today) > 0)
+      (task.status !== "done" && task.endDate && daysDiff(task.endDate, today) > 0)
     ) {
       suggestions.push({
         id: nextId(),
@@ -186,6 +188,7 @@ export function generateSuggestions(input: SuggestionsInput): Suggestion[] {
     const historyCount = countByType.get(task.taskType) ?? 0;
     if (historyCount < 2) continue;
 
+    if (!task.startDate || !task.endDate) continue;
     const duration = daysDiff(task.startDate, task.endDate) + 1;
     const avg = avgByType.get(task.taskType)!;
     if (duration < avg * 0.5) {

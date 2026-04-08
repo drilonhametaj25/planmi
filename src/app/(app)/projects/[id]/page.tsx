@@ -104,7 +104,7 @@ export default function ProjectPage() {
     async (taskId: string, newStart: string, newEnd: string) => {
       // 1. Optimistic: aggiorna task + tutti i discendenti nella cache
       const movedTask = tasks.find((t) => t.id === taskId);
-      if (movedTask) {
+      if (movedTask && movedTask.startDate) {
         const deltaMs =
           new Date(newStart + "T00:00:00Z").getTime() -
           new Date(movedTask.startDate + "T00:00:00Z").getTime();
@@ -133,7 +133,7 @@ export default function ProjectPage() {
                   if (t.id === taskId) {
                     return { ...t, startDate: newStart, endDate: newEnd };
                   }
-                  if (descendantIds.has(t.id)) {
+                  if (descendantIds.has(t.id) && t.startDate && t.endDate) {
                     const s = new Date(t.startDate + "T00:00:00Z").getTime() + deltaMs;
                     const e = new Date(t.endDate + "T00:00:00Z").getTime() + deltaMs;
                     return {

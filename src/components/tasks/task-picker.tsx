@@ -4,6 +4,7 @@
 
 import { useState, useMemo } from "react";
 import type { Task } from "@/db/schema";
+import { formatDateStr } from "@/lib/gantt/timeline";
 import {
   Command,
   CommandInput,
@@ -181,7 +182,10 @@ export function TaskPicker({
 
                   {/* Dates */}
                   <span className="text-[10px] font-mono text-muted-foreground shrink-0 ml-auto">
-                    {task.startDate.slice(5)} → {task.endDate.slice(5)}
+                    {task.startDate && task.endDate
+                      ? `${formatDateStr(task.startDate)} → ${formatDateStr(task.endDate)}`
+                      : <span className="italic">no date</span>
+                    }
                   </span>
                 </div>
               </CommandItem>

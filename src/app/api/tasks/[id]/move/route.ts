@@ -50,6 +50,9 @@ export async function POST(request: Request, { params }: RouteParams) {
     if (!currentTask) {
       return errorResponse("Task non trovato", 404);
     }
+    if (!currentTask.startDate || !currentTask.endDate) {
+      return errorResponse("Impossibile spostare un task non schedulato", 400);
+    }
 
     // Carica tutti i task del progetto
     const allTasks = await db
@@ -75,21 +78,25 @@ export async function POST(request: Request, { params }: RouteParams) {
     );
 
     // ── Cascata sottotask: calcola delta e pre-shifta discendenti ──
-    const deltaMs = parseD(newStartDate) - parseD(currentTask.startDate);
-    const descendants = getAllDescendants(id, allTasks);
+    const deltaMs = parseD(newStartDate) - parseD(currentTask.startDate!);
+    const descendants = getAllDescendants(id, allTasks).filter(
+      (t) => t.startDate && t.endDate
+    );
     const descendantIds = new Set(descendants.map((d) => d.id));
 
     // Pre-shifta i discendenti nella lista task per il motore di shifting
     // così le dipendenze vengono calcolate sulle posizioni aggiornate
-    const preShiftedTasks = allTasks.map((t) => {
+    // Solo task schedulati partecipano al shifting engine
+    const scheduledTasks = allTasks.filter((t) => t.startDate && t.endDate);
+    const preShiftedTasks = scheduledTasks.map((t) => {
       if (descendantIds.has(t.id)) {
         return {
           id: t.id,
-          startDate: formatD(parseD(t.startDate) + deltaMs),
-          endDate: formatD(parseD(t.endDate) + deltaMs),
+          startDate: formatD(parseD(t.startDate!) + deltaMs),
+          endDate: formatD(parseD(t.endDate!) + deltaMs),
         };
       }
-      return { id: t.id, startDate: t.startDate, endDate: t.endDate };
+      return { id: t.id, startDate: t.startDate!, endDate: t.endDate! };
     });
 
     // Calcola gli shift (dipendenze) con le posizioni pre-shiftate
@@ -129,8 +136,8 @@ export async function POST(request: Request, { params }: RouteParams) {
     const allShifts = [...result.shifts];
 
     for (const desc of descendants) {
-      const preShiftedStart = formatD(parseD(desc.startDate) + deltaMs);
-      const preShiftedEnd = formatD(parseD(desc.endDate) + deltaMs);
+      const preShiftedStart = formatD(parseD(desc.startDate!) + deltaMs);
+      const preShiftedEnd = formatD(parseD(desc.endDate!) + deltaMs);
 
       // Se il motore di shifting ha calcolato una posizione diversa per questo discendente
       // (a causa di una dipendenza esterna), usa quella
@@ -152,8 +159,8 @@ export async function POST(request: Request, { params }: RouteParams) {
       if (!depShift && deltaMs !== 0) {
         allShifts.push({
           taskId: desc.id,
-          oldStartDate: desc.startDate,
-          oldEndDate: desc.endDate,
+          oldStartDate: desc.startDate!,
+          oldEndDate: desc.endDate!,
           newStartDate: finalStart,
           newEndDate: finalEnd,
           reason: "Traslato con il task padre",
@@ -181,18 +188,20 @@ export async function POST(request: Request, { params }: RouteParams) {
       const shiftedTask = allTasks.find((t) => t.id === shift.taskId);
       if (!shiftedTask) continue;
 
+      if (!shiftedTask.startDate) continue;
       const shiftDeltaMs =
         parseD(shift.newStartDate) - parseD(shiftedTask.startDate);
       if (shiftDeltaMs === 0) continue;
 
-      const shiftedDescendants = getAllDescendants(shift.taskId, allTasks);
+      const shiftedDescendants = getAllDescendants(shift.taskId, allTasks)
+        .filter((t) => t.startDate && t.endDate);
       for (const desc of shiftedDescendants) {
         // Se il motore ha già calcolato uno shift specifico per questo discendente, usa quello
         const engineShift = result.shifts.find((s) => s.taskId === desc.id);
         if (engineShift) continue; // verrà gestito nel suo turno del loop esterno
 
-        const newDescStart = formatD(parseD(desc.startDate) + shiftDeltaMs);
-        const newDescEnd = formatD(parseD(desc.endDate) + shiftDeltaMs);
+        const newDescStart = formatD(parseD(desc.startDate!) + shiftDeltaMs);
+        const newDescEnd = formatD(parseD(desc.endDate!) + shiftDeltaMs);
 
         shiftedTaskIds.add(desc.id);
         await db
@@ -206,8 +215,8 @@ export async function POST(request: Request, { params }: RouteParams) {
 
         allShifts.push({
           taskId: desc.id,
-          oldStartDate: desc.startDate,
-          oldEndDate: desc.endDate,
+          oldStartDate: desc.startDate!,
+          oldEndDate: desc.endDate!,
           newStartDate: newDescStart,
           newEndDate: newDescEnd,
           reason: "Traslato con il task predecessore (dipendenza)",

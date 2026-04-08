@@ -22,6 +22,7 @@ import { AlertTriangle, ArrowRight, Loader2 } from "lucide-react";
 import { useEmergencyInsert } from "@/hooks/use-emergency-insert";
 import { toast } from "sonner";
 import type { ShiftEntry } from "@/lib/shifting-engine";
+import { formatDateStr, formatDateStrFull } from "@/lib/gantt/timeline";
 
 interface EmergencyInsertDialogProps {
   open: boolean;
@@ -195,7 +196,7 @@ export function EmergencyInsertDialog({
                   {preview.emergencyTask.title}
                 </div>
                 <div className="text-xs text-muted-foreground mt-1">
-                  {preview.emergencyTask.startDate} → {preview.emergencyTask.endDate}
+                  {formatDateStrFull(preview.emergencyTask.startDate)} → {formatDateStrFull(preview.emergencyTask.endDate)}
                   {" · "}{preview.emergencyTask.estimatedHours}h
                 </div>
               </div>
@@ -255,16 +256,15 @@ export function EmergencyInsertDialog({
 }
 
 function ShiftRow({ shift }: { shift: ShiftEntry }) {
-  const formatDate = (d: string) => d.slice(5); // MM-DD
   return (
     <div className="flex items-center gap-2 text-xs px-2 py-1 rounded bg-muted/50">
       <span className="flex-1 truncate text-muted-foreground">{shift.taskId.slice(0, 8)}...</span>
       <span className="line-through text-muted-foreground">
-        {formatDate(shift.oldStartDate)}
+        {formatDateStr(shift.oldStartDate)}
       </span>
       <ArrowRight className="h-3 w-3 text-muted-foreground" />
       <span className="font-medium">
-        {formatDate(shift.newStartDate)}
+        {formatDateStr(shift.newStartDate)}
       </span>
     </div>
   );

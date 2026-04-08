@@ -58,6 +58,7 @@ export function calculateTimelineRange(
   let latest = today;
 
   for (const task of tasks) {
+    if (!task.startDate || !task.endDate) continue; // skip unscheduled
     const start = new Date(task.startDate);
     const end = new Date(task.endDate);
     if (start < earliest) earliest = start;
@@ -119,9 +120,31 @@ export function isToday(date: Date): boolean {
   );
 }
 
-/** Formatta data come "1 Apr" */
+/** Formatta data come "08/04" (gg/mm) — formato corto italiano */
 export function formatShortDate(date: Date): string {
-  return date.toLocaleDateString("it-IT", { day: "numeric", month: "short" });
+  const d = String(date.getDate()).padStart(2, "0");
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  return `${d}/${m}`;
+}
+
+/** Formatta data come "08/04/2025" (gg/mm/aaaa) — formato completo italiano */
+export function formatFullDate(date: Date): string {
+  const d = String(date.getDate()).padStart(2, "0");
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const y = date.getFullYear();
+  return `${d}/${m}/${y}`;
+}
+
+/** Formatta stringa "YYYY-MM-DD" come "gg/mm" — formato corto italiano */
+export function formatDateStr(dateStr: string): string {
+  const parts = dateStr.split("-");
+  return `${parts[2]}/${parts[1]}`;
+}
+
+/** Formatta stringa "YYYY-MM-DD" come "gg/mm/aaaa" — formato completo italiano */
+export function formatDateStrFull(dateStr: string): string {
+  const parts = dateStr.split("-");
+  return `${parts[2]}/${parts[1]}/${parts[0]}`;
 }
 
 /** Formatta data come "Aprile 2025" */

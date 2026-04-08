@@ -55,12 +55,14 @@ export async function POST(request: Request, { params }: RouteParams) {
 
     // Assicura che projectId corrisponda alla route
     // Converti estimatedHours da number a string per il campo numeric del DB
-    const { estimatedHours, tags, ...rest } = parsed.data;
+    const { estimatedHours, tags, startDate, endDate, ...rest } = parsed.data;
     const [task] = await db
       .insert(tasks)
       .values({
         ...rest,
         projectId: id,
+        startDate: startDate ?? null,
+        endDate: endDate ?? null,
         estimatedHours: estimatedHours != null ? String(estimatedHours) : undefined,
         tags: tags ? serializeTags(tags) : undefined,
       })

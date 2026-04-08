@@ -5,7 +5,7 @@ import { memo, useMemo, useState, useCallback } from "react";
 import type { Task } from "@/db/schema";
 import { cn } from "@/lib/utils";
 import { buildTaskTree, filterVisibleNodes } from "@/lib/task-tree";
-import { ChevronRight, ChevronDown, Check, GripVertical, Link2 } from "lucide-react";
+import { ChevronRight, ChevronDown, Check, GripVertical, Link2, CalendarOff } from "lucide-react";
 import {
   DndContext,
   DragOverlay,
@@ -169,6 +169,11 @@ function SortableSidebarRow({
         <span className="text-[9px] bg-warning/20 text-warning px-1 rounded font-medium shrink-0">
           F
         </span>
+      )}
+
+      {/* Badge "da schedulare" per task senza date */}
+      {(!task.startDate || !task.endDate) && (
+        <CalendarOff className="h-3 w-3 shrink-0 text-warning/60" />
       )}
 
       {/* Icona link visibile al hover — indica che si può trascinare per creare dipendenza */}

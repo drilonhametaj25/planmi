@@ -38,12 +38,14 @@ export async function POST(request: Request, { params }: RouteParams) {
 
     const today = new Date().toISOString().split("T")[0]!;
 
-    const workloadTasks: WorkloadTask[] = projectTasks.map((t) => ({
+    // Solo task schedulati per il plan generator
+    const scheduledTasks = projectTasks.filter((t) => t.startDate && t.endDate);
+    const workloadTasks: WorkloadTask[] = scheduledTasks.map((t) => ({
       id: t.id,
       title: t.title,
       parentTaskId: t.parentTaskId,
-      startDate: t.startDate,
-      endDate: t.endDate,
+      startDate: t.startDate!,
+      endDate: t.endDate!,
       status: t.status,
       priority: t.priority,
       estimatedHours: t.estimatedHours,

@@ -125,9 +125,10 @@ export function TaskDetailPanel({
   const [newDepType, setNewDepType] = useState("FS");
   const [newDepLag, setNewDepLag] = useState(0);
 
-  const start = parseDate(task.startDate);
-  const end = parseDate(task.endDate);
-  const duration = daysBetween(start, end) + 1;
+  const isScheduled = !!task.startDate && !!task.endDate;
+  const start = task.startDate ? parseDate(task.startDate) : null;
+  const end = task.endDate ? parseDate(task.endDate) : null;
+  const duration = start && end ? daysBetween(start, end) + 1 : null;
 
   const predecessors = dependencies
     .filter((d) => d.successorId === task.id)
@@ -420,9 +421,9 @@ export function TaskDetailPanel({
             <Label className="text-xs">Inizio</Label>
             <Input
               type="date"
-              value={task.startDate}
+              value={task.startDate ?? ""}
               onChange={(e) =>
-                onUpdate(task.id, { startDate: e.target.value })
+                onUpdate(task.id, { startDate: e.target.value || null })
               }
             />
           </div>
@@ -430,17 +431,23 @@ export function TaskDetailPanel({
             <Label className="text-xs">Fine</Label>
             <Input
               type="date"
-              value={task.endDate}
+              value={task.endDate ?? ""}
               onChange={(e) =>
-                onUpdate(task.id, { endDate: e.target.value })
+                onUpdate(task.id, { endDate: e.target.value || null })
               }
             />
           </div>
         </div>
 
-        <div className="text-xs text-muted-foreground font-mono">
-          {formatShortDate(start)} → {formatShortDate(end)} · {duration} giorni
-        </div>
+        {isScheduled ? (
+          <div className="text-xs text-muted-foreground font-mono">
+            {formatShortDate(start!)} → {formatShortDate(end!)} · {duration} giorni
+          </div>
+        ) : (
+          <div className="text-xs text-warning/70 italic">
+            Da schedulare — imposta le date per posizionare nel Gantt
+          </div>
+        )}
 
         {/* Orari intra-giornalieri (solo per task foglia) */}
         {!subtasks.length && (
@@ -489,7 +496,7 @@ export function TaskDetailPanel({
                 const oldVal = task.estimatedHours ? Number(task.estimatedHours) : null;
                 if (val !== oldVal) {
                   const updates: Record<string, unknown> = { estimatedHours: val };
-                  if (val && val > 0) {
+                  if (val && val > 0 && task.startDate) {
                     updates.endDate = calculateEndFromHours(task.startDate, val);
                   }
                   onUpdate(task.id, updates);
@@ -719,21 +726,23 @@ export function TaskDetailPanel({
               </button>
             ))}
 
-            {/* Banner mismatch ore padre/sottotask */}
-            {subtasks.length > 0 && (() => {
-              const workloadTasks: WorkloadTask[] = tasks.map((t) => ({
-                id: t.id,
-                title: t.title,
-                parentTaskId: t.parentTaskId,
-                startDate: t.startDate,
-                endDate: t.endDate,
-                status: t.status,
-                priority: t.priority,
-                estimatedHours: t.estimatedHours,
-                executionMode: t.executionMode,
-                projectId: t.projectId,
-                sortOrder: t.sortOrder,
-              }));
+            {/* Banner mismatch ore padre/sottotask — solo per task schedulati */}
+            {subtasks.length > 0 && isScheduled && (() => {
+              const workloadTasks: WorkloadTask[] = tasks
+                .filter((t) => t.startDate && t.endDate)
+                .map((t) => ({
+                  id: t.id,
+                  title: t.title,
+                  parentTaskId: t.parentTaskId,
+                  startDate: t.startDate!,
+                  endDate: t.endDate!,
+                  status: t.status,
+                  priority: t.priority,
+                  estimatedHours: t.estimatedHours,
+                  executionMode: t.executionMode,
+                  projectId: t.projectId,
+                  sortOrder: t.sortOrder,
+                }));
               const mismatches = detectHoursMismatch(workloadTasks);
               const mismatch = mismatches.find((m) => m.parentTaskId === task.id);
               if (!mismatch) return null;
@@ -741,7 +750,7 @@ export function TaskDetailPanel({
               const subtaskHoursTotal = subtasks
                 .filter((s) => s.status !== "done")
                 .reduce((sum, s) => sum + (s.estimatedHours ? parseFloat(s.estimatedHours) : 0), 0);
-              const parentWorkdays = countWorkdays(task.startDate, task.endDate);
+              const parentWorkdays = countWorkdays(task.startDate!, task.endDate!);
 
               return (
                 <div className={cn(
@@ -818,8 +827,8 @@ export function TaskDetailPanel({
                         await onCreateSubtask({
                           parentTaskId: task.id,
                           title: subtaskTitle.trim(),
-                          startDate: task.startDate,
-                          endDate: task.endDate,
+                          startDate: task.startDate ?? new Date().toISOString().split("T")[0]!,
+                          endDate: task.endDate ?? new Date().toISOString().split("T")[0]!,
                         });
                         setSubtaskTitle("");
                         toast.success("Sottotask creato");
@@ -843,8 +852,8 @@ export function TaskDetailPanel({
                       await onCreateSubtask({
                         parentTaskId: task.id,
                         title: subtaskTitle.trim(),
-                        startDate: task.startDate,
-                        endDate: task.endDate,
+                        startDate: task.startDate ?? new Date().toISOString().split("T")[0]!,
+                        endDate: task.endDate ?? new Date().toISOString().split("T")[0]!,
                       });
                       setSubtaskTitle("");
                       toast.success("Sottotask creato");
@@ -867,14 +876,14 @@ export function TaskDetailPanel({
             <Label className="text-xs font-semibold uppercase tracking-wider">Dipendenze</Label>
           </div>
 
-          {/* Suggerimento rischedula */}
-          {rescheduleSuggestion && (
+          {/* Suggerimento rischedula — solo per task schedulati */}
+          {rescheduleSuggestion && isScheduled && (
             <div className="space-y-1.5">
               <ScheduleSuggestionBanner
                 suggestion={rescheduleSuggestion}
                 isLoading={rescheduleLoading}
-                currentStartDate={task.startDate}
-                currentEndDate={task.endDate}
+                currentStartDate={task.startDate!}
+                currentEndDate={task.endDate!}
                 onAccept={async (s, e) => {
                   if (onMoveTask) {
                     await onMoveTask(task.id, s, e);
@@ -885,12 +894,12 @@ export function TaskDetailPanel({
               />
             </div>
           )}
-          {rescheduleLoading && !rescheduleSuggestion && (
+          {rescheduleLoading && !rescheduleSuggestion && isScheduled && (
             <ScheduleSuggestionBanner
               suggestion={null}
               isLoading={true}
-              currentStartDate={task.startDate}
-              currentEndDate={task.endDate}
+              currentStartDate={task.startDate!}
+              currentEndDate={task.endDate!}
               onAccept={() => {}}
               tasks={tasks}
             />

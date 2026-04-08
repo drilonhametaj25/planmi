@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { Zap, ArrowRight, AlertTriangle, ChevronDown, ChevronRight, Calendar } from "lucide-react";
+import { formatDateStr } from "@/lib/gantt/timeline";
 
 interface OptimizePreviewDialogProps {
   open: boolean;
@@ -230,22 +231,22 @@ function ChangeRow({ change, isParent }: { change: TaskChange; isParent?: boolea
       </span>
       <div className="flex items-center gap-1 shrink-0 font-mono text-[10px]">
         <span className={cn(startChanged && "line-through text-muted-foreground/60")}>
-          {change.oldStartDate.slice(5)}
+          {formatDateStr(change.oldStartDate)}
         </span>
         {startChanged && (
           <>
             <ArrowRight className="h-2.5 w-2.5 text-pm-accent" />
-            <span className="text-pm-accent">{change.newStartDate.slice(5)}</span>
+            <span className="text-pm-accent">{formatDateStr(change.newStartDate)}</span>
           </>
         )}
         <span className="text-muted-foreground/40 mx-0.5">|</span>
         <span className={cn(endChanged && "line-through text-muted-foreground/60")}>
-          {change.oldEndDate.slice(5)}
+          {formatDateStr(change.oldEndDate)}
         </span>
         {endChanged && (
           <>
             <ArrowRight className="h-2.5 w-2.5 text-pm-accent" />
-            <span className="text-pm-accent">{change.newEndDate.slice(5)}</span>
+            <span className="text-pm-accent">{formatDateStr(change.newEndDate)}</span>
           </>
         )}
       </div>

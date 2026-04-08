@@ -45,12 +45,14 @@ export async function POST(request: Request, { params }: RouteParams) {
     const allTimeOff = await db.select().from(timeOff);
     const { blockedDates, dayCapacity } = buildTimeOffMaps(allTimeOff);
 
-    const workloadTasks: WorkloadTask[] = allTaskRows.map((t) => ({
+    // Solo task schedulati per l'optimizer
+    const scheduledRows = allTaskRows.filter((t) => t.startDate && t.endDate);
+    const workloadTasks: WorkloadTask[] = scheduledRows.map((t) => ({
       id: t.id,
       title: t.title,
       parentTaskId: t.parentTaskId,
-      startDate: t.startDate,
-      endDate: t.endDate,
+      startDate: t.startDate!,
+      endDate: t.endDate!,
       status: t.status,
       priority: t.priority,
       estimatedHours: t.estimatedHours,

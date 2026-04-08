@@ -22,7 +22,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { Plus, X, Check } from "lucide-react";
+import { Plus, X, Check, CalendarOff, CalendarDays } from "lucide-react";
 import { toast } from "sonner";
 import { useAutoSchedule } from "@/hooks/use-auto-schedule";
 import { ScheduleSuggestionBanner } from "./schedule-suggestion-banner";
@@ -98,6 +98,7 @@ export function CreateTaskDialog({
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [executionMode, setExecutionMode] = useState<"internal" | "supplier">("internal");
+  const [unscheduled, setUnscheduled] = useState(false);
   const { tags: tagSuggestions } = useTags(projectId);
 
   // Predecessori
@@ -174,6 +175,7 @@ export function CreateTaskDialog({
     setStartTime("");
     setEndTime("");
     setExecutionMode("internal");
+    setUnscheduled(false);
     setPredecessorDeps([]);
     setAddingPred(false);
     setNewPredId(null);
@@ -192,16 +194,16 @@ export function CreateTaskDialog({
         description: description.trim() || undefined,
         taskType,
         priority,
-        startDate,
-        endDate,
+        startDate: unscheduled ? null : startDate,
+        endDate: unscheduled ? null : endDate,
         parentTaskId: parentTaskId || undefined,
         milestoneId: milestoneId || undefined,
         estimatedHours: estimatedHours ? Number(estimatedHours) : undefined,
         executionMode,
         notes: notes.trim() || undefined,
         tags: tags.length > 0 ? tags : undefined,
-        startTime: startTime || undefined,
-        endTime: endTime || undefined,
+        startTime: unscheduled ? undefined : (startTime || undefined),
+        endTime: unscheduled ? undefined : (endTime || undefined),
       });
       // Crea le dipendenze se presenti
       const newTask = result as { data?: { id?: string } } | undefined;
@@ -364,59 +366,100 @@ export function CreateTaskDialog({
             )}
           </div>
 
-          {/* Date */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs">
-                Data inizio *
-                {predecessorDeps.length > 0 && suggestion && (
-                  <span className="text-[10px] text-pm-accent ml-1 font-normal">auto da dipendenza</span>
+          {/* Scheduling toggle */}
+          <div className="space-y-1.5">
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className={cn(
+                  "flex-1 h-8 rounded-md border text-xs font-medium transition-colors flex items-center justify-center gap-1.5",
+                  !unscheduled
+                    ? "border-pm-accent bg-pm-accent/10 text-pm-accent"
+                    : "border-border text-muted-foreground hover:border-foreground/30"
                 )}
-              </Label>
-              <Input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">
-                Data fine *
-                {Number(estimatedHours) > 0 && (
-                  <span className="text-[10px] text-pm-accent ml-1 font-normal">calcolata da ore</span>
+                onClick={() => setUnscheduled(false)}
+              >
+                <CalendarDays className="h-3.5 w-3.5" />
+                Schedulato
+              </button>
+              <button
+                type="button"
+                className={cn(
+                  "flex-1 h-8 rounded-md border text-xs font-medium transition-colors flex items-center justify-center gap-1.5",
+                  unscheduled
+                    ? "border-warning bg-warning/10 text-warning"
+                    : "border-border text-muted-foreground hover:border-foreground/30"
                 )}
-              </Label>
-              <Input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-              />
+                onClick={() => setUnscheduled(true)}
+              >
+                <CalendarOff className="h-3.5 w-3.5" />
+                Da schedulare
+              </button>
             </div>
+            {unscheduled && (
+              <p className="text-[10px] text-muted-foreground">
+                Il task verrà creato senza date. Potrai schedularlo in seguito dal pannello dettaglio o con l&apos;auto-scheduler.
+              </p>
+            )}
           </div>
 
-          {/* Orari opzionali */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Ora inizio</Label>
-              <Input
-                type="time"
-                step="900"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                placeholder="09:00"
-              />
+          {/* Date — nascoste se unscheduled */}
+          {!unscheduled && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">
+                  Data inizio
+                  {predecessorDeps.length > 0 && suggestion && (
+                    <span className="text-[10px] text-pm-accent ml-1 font-normal">auto da dipendenza</span>
+                  )}
+                </Label>
+                <Input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">
+                  Data fine
+                  {Number(estimatedHours) > 0 && (
+                    <span className="text-[10px] text-pm-accent ml-1 font-normal">calcolata da ore</span>
+                  )}
+                </Label>
+                <Input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Ora fine</Label>
-              <Input
-                type="time"
-                step="900"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                placeholder="17:00"
-              />
+          )}
+
+          {/* Orari opzionali — nascoste se unscheduled */}
+          {!unscheduled && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Ora inizio</Label>
+                <Input
+                  type="time"
+                  step="900"
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                  placeholder="09:00"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Ora fine</Label>
+                <Input
+                  type="time"
+                  step="900"
+                  value={endTime}
+                  onChange={(e) => setEndTime(e.target.value)}
+                  placeholder="17:00"
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Parent task (sottotask di...) */}
           <div className="space-y-1.5">
@@ -640,7 +683,7 @@ export function CreateTaskDialog({
           <Button
             className="w-full"
             onClick={handleCreate}
-            disabled={!title.trim() || !startDate || !endDate || creating}
+            disabled={!title.trim() || (!unscheduled && (!startDate || !endDate)) || creating}
           >
             {creating ? "Creazione..." : "Crea Task"}
           </Button>

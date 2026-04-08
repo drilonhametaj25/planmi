@@ -39,6 +39,8 @@ export async function GET() {
         .where(eq(tasks.projectId, pid));
 
       for (const t of projectTasks) {
+        // Skip unscheduled tasks (no dates)
+        if (!t.startDate || !t.endDate) continue;
         allTasks.push({
           id: t.id,
           title: t.title,

@@ -55,11 +55,13 @@ export async function POST(request: Request, { params }: RouteParams) {
         dependencyType: d.dependencyType as "FS" | "SS" | "FF" | "SF",
         lagDays: d.lagDays,
       })),
-      allTasks: allTasks.map((t) => ({
-        id: t.id,
-        startDate: t.startDate,
-        endDate: t.endDate,
-      })),
+      allTasks: allTasks
+        .filter((t) => t.startDate && t.endDate)
+        .map((t) => ({
+          id: t.id,
+          startDate: t.startDate!,
+          endDate: t.endDate!,
+        })),
       allDependencies: projectDeps.map((d) => ({
         predecessorId: d.predecessorId,
         successorId: d.successorId,
