@@ -6,7 +6,14 @@
       "Bash(cp -r \"E:/ssd-workspace/planmi-temp/\"* \"E:/ssd-workspace/planmi-temp/\".* \"E:/ssd-workspace/planmi/\")",
       "Bash(rm -rf \"E:/ssd-workspace/planmi-temp\")",
       "Bash(npx shadcn@latest init -d --base-color zinc)",
-      "Bash(npx shadcn@latest init -d)"
+      "Bash(npx shadcn@latest init -d)",
+      "Bash(npx shadcn@latest add button dialog dropdown-menu input label select sonner badge card tabs tooltip popover command calendar -y)",
+      "Bash(npm install:*)",
+      "Bash(npm run:*)",
+      "Bash(npx drizzle-kit:*)",
+      "Bash(npx next:*)",
+      "Bash(cat:*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

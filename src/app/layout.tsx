@@ -1,10 +1,7 @@
 /* layout.tsx — Root layout with DM Sans + JetBrains Mono fonts, dark mode default */
 import type { Metadata } from "next";
-import { DM_Sans, JetBrains_Mono, Geist } from "next/font/google";
+import { DM_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import { cn } from "@/lib/utils";
-
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 const dmSans = DM_Sans({
   variable: "--font-dm-sans",
@@ -31,7 +28,7 @@ export default function RootLayout({
   return (
     <html
       lang="it"
-      className={cn("dark", "h-full", "antialiased", dmSans.variable, jetbrainsMono.variable, "font-sans", geist.variable)}
+      className={`${dmSans.variable} ${jetbrainsMono.variable} dark h-full antialiased`}
     >
       <body className="min-h-full bg-background text-foreground font-sans">
         {children}
