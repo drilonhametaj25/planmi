@@ -15,7 +15,7 @@ export interface TimelineConfig {
 export function getDayWidth(zoom: ZoomLevel): number {
   switch (zoom) {
     case "hour":
-      return 120; // 15px per ora × 8 ore lavorative
+      return 285; // 15px per ora × 19 ore (05:00-24:00)
     case "day":
       return 40;
     case "week":
@@ -160,12 +160,12 @@ export function parseDate(dateStr: string): Date {
 
 // ── Funzioni per scheduling orario intra-giornaliero ──
 
-export const WORKDAY_START = 9;  // 09:00
-export const WORKDAY_END = 17;   // 17:00
-export const WORKDAY_HOURS = 8;
+export const WORKDAY_START = 5;   // 05:00
+export const WORKDAY_END = 24;    // 24:00 (mezzanotte)
+export const WORKDAY_HOURS = 19;
 
 /** Converte "HH:MM" in frazione della giornata lavorativa [0.0 - 1.0].
- *  "09:00" → 0.0, "13:00" → 0.5, "17:00" → 1.0. null → 0.0 (inizio giornata). */
+ *  "05:00" → 0.0, "14:30" → 0.5, "24:00" → 1.0. null → 0.0 (inizio giornata). */
 export function timeToFractionOfDay(time: string | null): number {
   if (!time) return 0;
   const [h, m] = time.split(":").map(Number);

@@ -17,7 +17,8 @@
       "Bash(xargs grep:*)",
       "Bash(ls E:/ssd-workspace/planmi/drizzle.config.*)",
       "Bash(npx tsx:*)",
-      "Bash(node -e \"require\\('dotenv'\\)\")"
+      "Bash(node -e \"require\\('dotenv'\\)\")",
+      "Bash(find:*)"
     ]
   }
 }

@@ -22,6 +22,7 @@ import {
   timeToFractionOfDay,
   fractionToTime,
   WORKDAY_HOURS,
+  WORKDAY_START,
 } from "@/lib/gantt/timeline";
 import { computeRows } from "@/lib/gantt/layout";
 import type { RowLayout } from "@/lib/gantt/layout";
@@ -157,11 +158,11 @@ export function GanttChart({
   }, [timeOff]);
 
   const totalWidth = getTotalWidth(config);
-  const totalHeight = HEADER_HEIGHT + scheduledTasks.length * ROW_HEIGHT + 60;
+  const totalHeight = HEADER_HEIGHT + visibleTasks.length * ROW_HEIGHT + 60;
 
   const rows = useMemo(
-    () => computeRows(scheduledTasks, config, zoom),
-    [scheduledTasks, config, zoom]
+    () => computeRows(scheduledTasks, config, zoom, visibleTasks),
+    [scheduledTasks, config, zoom, visibleTasks]
   );
   const layoutMap = useMemo(() => {
     const map = new Map<string, RowLayout>();
@@ -439,8 +440,10 @@ export function GanttChart({
                     strokeWidth={zoom === "hour" ? 1 : 0.5}
                   />
                   {/* Linee orarie dentro il giorno (solo zoom ore, no weekend) */}
-                  {zoom === "hour" && !isWe && Array.from({ length: 7 }, (_, h) => {
-                    const hourX = x + ((h + 1) / 8) * dayWidth;
+                  {zoom === "hour" && !isWe && Array.from({ length: WORKDAY_HOURS - 1 }, (_, h) => {
+                    const hourX = x + ((h + 1) / WORKDAY_HOURS) * dayWidth;
+                    // Linea solida a mezzogiorno (ora 12 = indice 7 da WORKDAY_START=5)
+                    const isMidDay = (WORKDAY_START + h + 1) === 12;
                     return (
                       <line
                         key={h}
@@ -450,7 +453,7 @@ export function GanttChart({
                         y2={totalHeight}
                         stroke="var(--gantt-grid)"
                         strokeWidth={0.3}
-                        strokeDasharray={h === 3 ? "none" : "2 4"}
+                        strokeDasharray={isMidDay ? "none" : "2 4"}
                       />
                     );
                   })}
@@ -459,7 +462,7 @@ export function GanttChart({
             })}
 
             {/* Grid righe */}
-            {scheduledTasks.map((_, i) => (
+            {visibleTasks.map((_, i) => (
               <line
                 key={i}
                 x1={0}
@@ -525,7 +528,7 @@ export function GanttChart({
                   key={m.id}
                   milestone={m}
                   config={config}
-                  totalRows={scheduledTasks.length}
+                  totalRows={visibleTasks.length}
                 />
               ))}
           </svg>

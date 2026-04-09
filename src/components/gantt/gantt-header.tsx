@@ -9,6 +9,8 @@ import {
   isWeekend,
   isToday,
   formatMonthYear,
+  WORKDAY_HOURS,
+  WORKDAY_START,
 } from "@/lib/gantt/timeline";
 
 interface GanttHeaderProps {
@@ -161,10 +163,10 @@ function GanttHeaderInner({ config, totalWidth, zoom, timeOffMap }: GanttHeaderP
                 >
                   {day.date.toLocaleDateString("it-IT", { weekday: "short" })} {day.label}
                 </text>
-                {/* Tick ore lavorative 9-17 */}
-                {!day.isWeekend && Array.from({ length: 8 }, (_, h) => {
-                  const hourX = day.x + (h / 8) * config.dayWidth;
-                  const hour = 9 + h;
+                {/* Tick ore 05:00-24:00 */}
+                {!day.isWeekend && Array.from({ length: WORKDAY_HOURS }, (_, h) => {
+                  const hourX = day.x + (h / WORKDAY_HOURS) * config.dayWidth;
+                  const hour = WORKDAY_START + h;
                   return (
                     <g key={h}>
                       {h > 0 && (

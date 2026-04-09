@@ -1,13 +1,15 @@
 /* route.ts — GET /api/projects (lista con stats), POST /api/projects (crea progetto). */
 import { db } from "@/db";
 import { projects, tasks } from "@/db/schema";
-import { eq, sql, count } from "drizzle-orm";
+import { eq, sql, count, isNull } from "drizzle-orm";
 import { successResponse, errorResponse, parseBody } from "@/lib/api-helpers";
 import { createProjectSchema } from "@/lib/validators";
 
 export async function GET() {
   try {
-    const allProjects = await db.select().from(projects).orderBy(projects.updatedAt);
+    const allProjects = await db.select().from(projects)
+      .where(isNull(projects.deletedAt))
+      .orderBy(projects.updatedAt);
 
     const projectStats = await Promise.all(
       allProjects.map(async (project) => {

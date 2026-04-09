@@ -1,7 +1,7 @@
 /* route.ts — GET/PATCH/DELETE /api/projects/[id]. Singolo progetto con tasks e milestones. */
 import { db } from "@/db";
 import { projects, tasks, milestones, dependencies } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { successResponse, errorResponse, parseBody } from "@/lib/api-helpers";
 import { updateProjectSchema } from "@/lib/validators";
 
@@ -15,7 +15,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
     const [project] = await db
       .select()
       .from(projects)
-      .where(eq(projects.id, id));
+      .where(and(eq(projects.id, id), isNull(projects.deletedAt)));
 
     if (!project) {
       return errorResponse("Progetto non trovato", 404);
@@ -65,7 +65,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     const [updated] = await db
       .update(projects)
       .set({ ...parsed.data, updatedAt: new Date() })
-      .where(eq(projects.id, id))
+      .where(and(eq(projects.id, id), isNull(projects.deletedAt)))
       .returning();
 
     if (!updated) {
@@ -83,8 +83,9 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
   try {
     const { id } = await params;
     const [deleted] = await db
-      .delete(projects)
-      .where(eq(projects.id, id))
+      .update(projects)
+      .set({ deletedAt: new Date() })
+      .where(and(eq(projects.id, id), isNull(projects.deletedAt)))
       .returning();
 
     if (!deleted) {
