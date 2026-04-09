@@ -277,7 +277,7 @@ export function TaskDetailPanel({
   return (
     <div className={cn(
       "fixed right-0 top-0 h-full border-l border-border bg-card shadow-xl z-40 overflow-y-auto transition-[width] duration-200",
-      expanded ? "w-[640px]" : "w-96"
+      expanded ? "w-[50vw]" : "w-96"
     )}>
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border p-4">
