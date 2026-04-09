@@ -96,14 +96,30 @@ export async function GET(request: Request) {
   }
 }
 
+/** Rimuove sintassi markdown per snippet di ricerca più leggibili. */
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/#{1,6}\s/g, "")
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/\*(.+?)\*/g, "$1")
+    .replace(/`(.+?)`/g, "$1")
+    .replace(/\[(.+?)\]\(.+?\)/g, "$1")
+    .replace(/^[-*+]\s/gm, "")
+    .replace(/^>\s/gm, "")
+    .replace(/\n/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 /** Estrae un frammento di testo attorno al match (~60 char prima e dopo). */
 function extractSnippet(text: string, query: string): string {
-  const idx = text.toLowerCase().indexOf(query);
-  if (idx === -1) return text.slice(0, 120);
+  const clean = stripMarkdown(text);
+  const idx = clean.toLowerCase().indexOf(query);
+  if (idx === -1) return clean.slice(0, 120);
   const start = Math.max(0, idx - 60);
-  const end = Math.min(text.length, idx + query.length + 60);
-  let snippet = text.slice(start, end);
+  const end = Math.min(clean.length, idx + query.length + 60);
+  let snippet = clean.slice(start, end);
   if (start > 0) snippet = "..." + snippet;
-  if (end < text.length) snippet += "...";
+  if (end < clean.length) snippet += "...";
   return snippet;
 }

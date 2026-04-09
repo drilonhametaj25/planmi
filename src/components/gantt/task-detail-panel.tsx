@@ -3,12 +3,13 @@
 
 import { useState, useEffect } from "react";
 import type { Task, Dependency, Milestone } from "@/db/schema";
-import { X, Plus, Trash2, Link2, ArrowRight, Check, AlertTriangle, Zap } from "lucide-react";
+import { X, Plus, Trash2, Link2, ArrowRight, Check, AlertTriangle, Zap, Maximize2, Minimize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { MarkdownField } from "@/components/ui/markdown-field";
 import {
   Select,
   SelectContent,
@@ -91,6 +92,7 @@ export function TaskDetailPanel({
   onContinueTask,
 }: TaskDetailPanelProps) {
   const [title, setTitle] = useState(task.title);
+  const [expanded, setExpanded] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [localProgress, setLocalProgress] = useState(task.progress ?? 0);
@@ -273,13 +275,21 @@ export function TaskDetailPanel({
   }
 
   return (
-    <div className="fixed right-0 top-0 h-full w-96 border-l border-border bg-card shadow-xl z-40 overflow-y-auto">
+    <div className={cn(
+      "fixed right-0 top-0 h-full border-l border-border bg-card shadow-xl z-40 overflow-y-auto transition-[width] duration-200",
+      expanded ? "w-[640px]" : "w-96"
+    )}>
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border p-4">
         <h3 className="text-sm font-semibold">Dettaglio Task</h3>
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
-          <X className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setExpanded(!expanded)} title={expanded ? "Riduci pannello" : "Espandi pannello"}>
+            {expanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+          </Button>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       <div className="space-y-5 p-4">
@@ -327,23 +337,18 @@ export function TaskDetailPanel({
           </button>
         </div>
 
-        {/* Descrizione */}
-        <div className="space-y-1.5">
-          <Label className="text-xs">Descrizione</Label>
-          <Textarea
-            key={task.id + "-desc"}
-            placeholder="Descrivi cosa va fatto..."
-            rows={3}
-            className="text-xs resize-none"
-            defaultValue={task.description ?? ""}
-            onBlur={(e) => {
-              const val = (e.target as HTMLTextAreaElement).value;
-              if (val !== (task.description ?? "")) {
-                onUpdate(task.id, { description: val || null });
-              }
-            }}
-          />
-        </div>
+        {/* Descrizione (Markdown) */}
+        <MarkdownField
+          key={task.id + "-desc"}
+          label="Descrizione"
+          placeholder="Descrivi cosa va fatto..."
+          value={task.description ?? ""}
+          onSave={(val) => {
+            if (val !== (task.description ?? "")) {
+              onUpdate(task.id, { description: val || null });
+            }
+          }}
+        />
 
         {/* Stato + Priorità in row */}
         <div className="grid grid-cols-2 gap-2">
@@ -580,22 +585,18 @@ export function TaskDetailPanel({
           })()}
         </div>
 
-        {/* Note */}
-        <div className="space-y-1.5">
-          <Label className="text-xs">Note</Label>
-          <Textarea
-            placeholder="Appunti, link, riferimenti..."
-            rows={2}
-            className="text-xs resize-none"
-            defaultValue={task.notes ?? ""}
-            onBlur={(e) => {
-              const val = (e.target as HTMLTextAreaElement).value;
-              if (val !== (task.notes ?? "")) {
-                onUpdate(task.id, { notes: val || null });
-              }
-            }}
-          />
-        </div>
+        {/* Note (Markdown) */}
+        <MarkdownField
+          key={task.id + "-notes"}
+          label="Note"
+          placeholder="Appunti, link, riferimenti..."
+          value={task.notes ?? ""}
+          onSave={(val) => {
+            if (val !== (task.notes ?? "")) {
+              onUpdate(task.id, { notes: val || null });
+            }
+          }}
+        />
 
         {/* Tag */}
         <div className="space-y-1.5">
