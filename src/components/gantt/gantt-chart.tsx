@@ -19,6 +19,9 @@ import {
   dateToX,
   daysBetween,
   isWeekend,
+  timeToFractionOfDay,
+  fractionToTime,
+  WORKDAY_HOURS,
 } from "@/lib/gantt/timeline";
 import { computeRows } from "@/lib/gantt/layout";
 import type { RowLayout } from "@/lib/gantt/layout";
@@ -37,8 +40,8 @@ interface GanttChartProps {
   dependencies: Dependency[];
   milestones: Milestone[];
   onTaskSelect: (taskId: string | null) => void;
-  onTaskMove: (taskId: string, newStart: string, newEnd: string) => void;
-  onTaskResize: (taskId: string, newStart: string, newEnd: string) => void;
+  onTaskMove: (taskId: string, newStart: string, newEnd: string, newStartTime?: string | null, newEndTime?: string | null) => void;
+  onTaskResize: (taskId: string, newStart: string, newEnd: string, newStartTime?: string | null, newEndTime?: string | null) => void;
   onTaskToggleComplete: (taskId: string, done: boolean) => void;
   onReorderTasks?: (updates: { id: string; sortOrder: number }[]) => void;
   selectedTaskId: string | null;
@@ -232,7 +235,7 @@ export function GanttChart({
       if (!drag) return;
 
       const finalOffset = e.clientX - drag.startX;
-      const daysDelta = Math.round(finalOffset / dayWidth);
+      const isHourZoom = zoom === "hour";
 
       // Reset drag state PRIMA dell'API call — la barra torna in posizione originale
       // ma l'optimistic update nel parent la sposterà subito alla nuova posizione
@@ -240,30 +243,102 @@ export function GanttChart({
       setDraggingTaskId(null);
       setDragOffsetX(0);
 
-      if (daysDelta === 0) return;
-
       const task = tasks.find((t) => t.id === drag.taskId);
       if (!task || !task.startDate || !task.endDate) return;
 
-      // Calcolo date con UTC puro (evita offset timezone locale)
       const DAY_MS = 86400000;
       const startMs = new Date(task.startDate + "T00:00:00Z").getTime();
       const endMs = new Date(task.endDate + "T00:00:00Z").getTime();
-      const deltaMs = daysDelta * DAY_MS;
 
-      if (drag.type === "move") {
-        const newStart = toISODateStr(new Date(startMs + deltaMs));
-        const newEnd = toISODateStr(new Date(endMs + deltaMs));
-        onTaskMove(task.id, newStart, newEnd);
-      } else if (drag.type === "resize-right") {
-        const newEnd = new Date(endMs + deltaMs);
-        if (newEnd.getTime() >= startMs) {
-          onTaskResize(task.id, task.startDate, toISODateStr(newEnd));
+      if (isHourZoom && task.startTime) {
+        // ── Zoom orario: calcola delta in frazioni di giorno (snap 15min) ──
+        const hourWidth = dayWidth / WORKDAY_HOURS; // px per ora
+        const minutesPx = hourWidth / 60; // px per minuto
+        const minutesDelta = Math.round(finalOffset / minutesPx / 15) * 15; // snap 15min
+
+        if (minutesDelta === 0) return;
+
+        const daysDelta = Math.floor(minutesDelta / (WORKDAY_HOURS * 60));
+        const remainingMinutes = minutesDelta - daysDelta * WORKDAY_HOURS * 60;
+
+        if (drag.type === "move") {
+          // Calcola nuove date
+          const newStart = toISODateStr(new Date(startMs + daysDelta * DAY_MS));
+          const newEnd = toISODateStr(new Date(endMs + daysDelta * DAY_MS));
+
+          // Calcola nuovi orari
+          const startFrac = timeToFractionOfDay(task.startTime);
+          const newStartFrac = startFrac + remainingMinutes / (WORKDAY_HOURS * 60);
+
+          // Gestisci overflow/underflow giornata (se l'orario esce dal range 09:00-17:00)
+          let finalDayOffset = 0;
+          let clampedStartFrac = newStartFrac;
+          if (newStartFrac >= 1) {
+            finalDayOffset = Math.floor(newStartFrac);
+            clampedStartFrac = newStartFrac - finalDayOffset;
+          } else if (newStartFrac < 0) {
+            finalDayOffset = Math.floor(newStartFrac);
+            clampedStartFrac = newStartFrac - finalDayOffset;
+          }
+
+          const adjustedNewStart = finalDayOffset !== 0
+            ? toISODateStr(new Date(new Date(newStart + "T00:00:00Z").getTime() + finalDayOffset * DAY_MS))
+            : newStart;
+          const adjustedNewEnd = finalDayOffset !== 0
+            ? toISODateStr(new Date(new Date(newEnd + "T00:00:00Z").getTime() + finalDayOffset * DAY_MS))
+            : newEnd;
+
+          const newStartTime = fractionToTime(clampedStartFrac);
+          let newEndTime: string | null = null;
+          if (task.endTime) {
+            const endFrac = timeToFractionOfDay(task.endTime);
+            const newEndFrac = endFrac + remainingMinutes / (WORKDAY_HOURS * 60);
+            newEndTime = fractionToTime(Math.max(0, Math.min(1, newEndFrac - (finalDayOffset !== 0 ? finalDayOffset : 0))));
+          }
+
+          onTaskMove(task.id, adjustedNewStart, adjustedNewEnd, newStartTime, newEndTime);
+        } else if (drag.type === "resize-right" && task.endTime) {
+          const endFrac = timeToFractionOfDay(task.endTime);
+          const newEndFrac = endFrac + minutesDelta / (WORKDAY_HOURS * 60);
+          const extraDays = Math.floor(newEndFrac);
+          const clampedEndFrac = newEndFrac - extraDays;
+          const newEndDate = extraDays > 0
+            ? toISODateStr(new Date(endMs + extraDays * DAY_MS))
+            : task.endDate;
+          const newEndTime = fractionToTime(Math.max(0, Math.min(1, clampedEndFrac)));
+          onTaskResize(task.id, task.startDate, newEndDate, task.startTime, newEndTime);
+        } else if (drag.type === "resize-left") {
+          const startFrac = timeToFractionOfDay(task.startTime);
+          const newStartFrac = startFrac + minutesDelta / (WORKDAY_HOURS * 60);
+          const extraDays = Math.floor(newStartFrac);
+          const clampedStartFrac = newStartFrac - extraDays;
+          const newStartDate = extraDays !== 0
+            ? toISODateStr(new Date(startMs + extraDays * DAY_MS))
+            : task.startDate;
+          const newStartTime = fractionToTime(Math.max(0, Math.min(1, clampedStartFrac)));
+          onTaskResize(task.id, newStartDate, task.endDate, newStartTime, task.endTime ?? null);
         }
-      } else if (drag.type === "resize-left") {
-        const newStart = new Date(startMs + deltaMs);
-        if (newStart.getTime() <= endMs) {
-          onTaskResize(task.id, toISODateStr(newStart), task.endDate);
+      } else {
+        // ── Zoom giorno/settimana/mese: calcola delta in giorni interi ──
+        const daysDelta = Math.round(finalOffset / dayWidth);
+        if (daysDelta === 0) return;
+
+        const deltaMs = daysDelta * DAY_MS;
+
+        if (drag.type === "move") {
+          const newStart = toISODateStr(new Date(startMs + deltaMs));
+          const newEnd = toISODateStr(new Date(endMs + deltaMs));
+          onTaskMove(task.id, newStart, newEnd);
+        } else if (drag.type === "resize-right") {
+          const newEnd = new Date(endMs + deltaMs);
+          if (newEnd.getTime() >= startMs) {
+            onTaskResize(task.id, task.startDate, toISODateStr(newEnd));
+          }
+        } else if (drag.type === "resize-left") {
+          const newStart = new Date(startMs + deltaMs);
+          if (newStart.getTime() <= endMs) {
+            onTaskResize(task.id, toISODateStr(newStart), task.endDate);
+          }
         }
       }
     };
@@ -274,7 +349,7 @@ export function GanttChart({
       document.removeEventListener("pointermove", handlePointerMove);
       document.removeEventListener("pointerup", handlePointerUp);
     };
-  }, [draggingTaskId, dayWidth, tasks, onTaskMove, onTaskResize]);
+  }, [draggingTaskId, dayWidth, zoom, tasks, onTaskMove, onTaskResize]);
 
   // ── Keyboard ──
   useEffect(() => {

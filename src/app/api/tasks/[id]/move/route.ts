@@ -40,7 +40,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     const parsed = await parseBody(request, moveTaskSchema);
     if (parsed.error) return parsed.error;
 
-    const { newStartDate, newEndDate } = parsed.data;
+    const { newStartDate, newEndDate, newStartTime, newEndTime } = parsed.data;
 
     // Carica il task corrente
     const [currentTask] = await db
@@ -128,6 +128,8 @@ export async function POST(request: Request, { params }: RouteParams) {
       .set({
         startDate: newStartDate,
         endDate: newEndDate,
+        ...(newStartTime !== undefined && { startTime: newStartTime }),
+        ...(newEndTime !== undefined && { endTime: newEndTime }),
         updatedAt: new Date(),
       })
       .where(eq(tasks.id, id));

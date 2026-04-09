@@ -55,15 +55,19 @@ async function deleteTask(
 
 async function moveTask(
   _url: string,
-  { arg }: { arg: { id: string; newStartDate: string; newEndDate: string } }
+  { arg }: { arg: { id: string; newStartDate: string; newEndDate: string; newStartTime?: string | null; newEndTime?: string | null } }
 ) {
+  const body: Record<string, unknown> = {
+    newStartDate: arg.newStartDate,
+    newEndDate: arg.newEndDate,
+  };
+  if (arg.newStartTime !== undefined) body.newStartTime = arg.newStartTime;
+  if (arg.newEndTime !== undefined) body.newEndTime = arg.newEndTime;
+
   const res = await fetch(`/api/tasks/${arg.id}/move`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      newStartDate: arg.newStartDate,
-      newEndDate: arg.newEndDate,
-    }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error("Errore spostamento task");
   return res.json();

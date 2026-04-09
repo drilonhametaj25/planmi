@@ -101,7 +101,7 @@ export default function ProjectPage() {
 
   // ── Move: optimistic (task + discendenti) → API → revalidate ──
   const handleTaskMove = useCallback(
-    async (taskId: string, newStart: string, newEnd: string) => {
+    async (taskId: string, newStart: string, newEnd: string, newStartTime?: string | null, newEndTime?: string | null) => {
       // 1. Optimistic: aggiorna task + tutti i discendenti nella cache
       const movedTask = tasks.find((t) => t.id === taskId);
       if (movedTask && movedTask.startDate) {
@@ -131,7 +131,13 @@ export default function ProjectPage() {
                 ...current.data,
                 tasks: current.data.tasks.map((t) => {
                   if (t.id === taskId) {
-                    return { ...t, startDate: newStart, endDate: newEnd };
+                    return {
+                      ...t,
+                      startDate: newStart,
+                      endDate: newEnd,
+                      ...(newStartTime !== undefined && { startTime: newStartTime }),
+                      ...(newEndTime !== undefined && { endTime: newEndTime }),
+                    };
                   }
                   if (descendantIds.has(t.id) && t.startDate && t.endDate) {
                     const s = new Date(t.startDate + "T00:00:00Z").getTime() + deltaMs;
@@ -150,7 +156,12 @@ export default function ProjectPage() {
           { revalidate: false }
         );
       } else {
-        optimisticUpdateTask(taskId, { startDate: newStart, endDate: newEnd });
+        optimisticUpdateTask(taskId, {
+          startDate: newStart,
+          endDate: newEnd,
+          ...(newStartTime !== undefined && { startTime: newStartTime }),
+          ...(newEndTime !== undefined && { endTime: newEndTime }),
+        });
       }
 
       // 2. API call in background
@@ -159,6 +170,8 @@ export default function ProjectPage() {
           id: taskId,
           newStartDate: newStart,
           newEndDate: newEnd,
+          ...(newStartTime !== undefined && { newStartTime }),
+          ...(newEndTime !== undefined && { newEndTime }),
         });
         // 3. Revalidate per applicare eventuali shift dal server
         await mutateTasks();
@@ -172,15 +185,22 @@ export default function ProjectPage() {
 
   // ── Resize: optimistic → API → revalidate ──
   const handleTaskResize = useCallback(
-    async (taskId: string, newStart: string, newEnd: string) => {
+    async (taskId: string, newStart: string, newEnd: string, newStartTime?: string | null, newEndTime?: string | null) => {
       optimisticUpdateTask(taskId, {
         startDate: newStart,
         endDate: newEnd,
+        ...(newStartTime !== undefined && { startTime: newStartTime }),
+        ...(newEndTime !== undefined && { endTime: newEndTime }),
       });
       try {
         await updateTask({
           id: taskId,
-          data: { startDate: newStart, endDate: newEnd },
+          data: {
+            startDate: newStart,
+            endDate: newEnd,
+            ...(newStartTime !== undefined && { startTime: newStartTime }),
+            ...(newEndTime !== undefined && { endTime: newEndTime }),
+          },
         });
         await mutateTasks();
       } catch {
